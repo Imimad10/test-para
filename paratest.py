@@ -17,6 +17,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 IMG_DIR = os.path.join(BASE_DIR, 'images_stock')
 DB_PATH = os.path.join(BASE_DIR, 'database_para.csv')
 USER_DB = os.path.join(BASE_DIR, 'users.csv')
+SALES_DB = os.path.join(BASE_DIR, 'ventes.csv')
 
 if not os.path.exists(IMG_DIR): os.makedirs(IMG_DIR)
 
@@ -75,7 +76,7 @@ st.markdown("""
 # --- 3. FONCTIONS TECHNIQUES ---
 
 def load_data():
-    cols = ['Produit', 'Laboratoire', 'Quantité', 'PPA', 'image_path', 'Famille', 'DDP', 'Promo']
+    cols = ['Produit', 'Laboratoire', 'Quantité', 'PPA', 'image_path', 'Famille', 'DDP', 'Promo', 'Prix_Achat', 'Description']
     if not os.path.exists(DB_PATH): return pd.DataFrame(columns=cols)
     try:
         df = pd.read_csv(DB_PATH, encoding='utf-8-sig')
@@ -87,14 +88,35 @@ def load_data():
         
         for c in cols:
             if c not in df.columns: 
-                df[c] = False if c == 'Promo' else ""
+                if c == 'Promo': df[c] = False
+                elif c in ['Prix_Achat', 'PPA', 'Quantité']: df[c] = 0
+                else: df[c] = ""
             
         # Nettoyage numérique
         df['PPA'] = pd.to_numeric(df['PPA'], errors='coerce').fillna(0)
+        df['Prix_Achat'] = pd.to_numeric(df['Prix_Achat'], errors='coerce').fillna(0)
         df['Quantité'] = pd.to_numeric(df['Quantité'], errors='coerce').fillna(0)
         df['Promo'] = df['Promo'].astype(bool)
         return df.fillna("")
     except: return pd.DataFrame(columns=cols)
+
+def save_sale(cart_dict, total_val, user):
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    sale_data = []
+    for k, v in cart_dict.items():
+        sale_data.append({
+            "Date": now,
+            "Client": user,
+            "Produit": k,
+            "Prix": v['price'],
+            "Qty": v['qty'],
+            "Total": v['price'] * v['qty']
+        })
+    df_sales = pd.DataFrame(sale_data)
+    if os.path.exists(SALES_DB):
+        df_sales.to_csv(SALES_DB, mode='a', header=False, index=False, encoding='utf-8-sig')
+    else:
+        df_sales.to_csv(SALES_DB, index=False, encoding='utf-8-sig')
 
 def load_users():
     if not os.path.exists(USER_DB):
@@ -163,6 +185,36 @@ def generate_pdf_catalogue(df):
         ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
     ]))
     elements.append(t)
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
+
+def generate_invoice(cart_dict, total_val):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    elements.append(Paragraph("<b>FACTURE - PHARMACIEL PRO</b>", styles['Title']))
+    elements.append(Paragraph(f"Date : {datetime.now().strftime('%d/%m/%Y %H:%M')}", styles['Normal']))
+    elements.append(Spacer(1, 20))
+    
+    data = [["Désignation", "Prix Unitaire", "Qté", "Total"]]
+    for k, v in cart_dict.items():
+        data.append([k, f"{v['price']} DA", v['qty'], f"{v['price']*v['qty']} DA"])
+    
+    data.append(["", "", "<b>TOTAL</b>", f"<b>{total_val} DA</b>"])
+    
+    t = Table(data, colWidths=[250, 100, 50, 100])
+    t.setStyle(TableStyle([
+        ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+        ('BACKGROUND', (0,0), (-1,0), colors.lightgrey),
+        ('ALIGN', (1,0), (-1,-1), 'CENTER'),
+    ]))
+    elements.append(t)
+    elements.append(Spacer(1, 40))
+    elements.append(Paragraph("<i>Merci de votre confiance.</i>", styles['Normal']))
+    
     doc.build(elements)
     buffer.seek(0)
     return buffer
@@ -273,8 +325,13 @@ def show_details(row):
             st.write(f"**📦 Stock :** {row['Quantité']} unités")
             val_tot = float(row['PPA']) * float(row['Quantité'])
             st.write(f"**💰 Valeur Stock :** {val_tot:,.2f} DA")
-            
+            st.write(f"**💳 Prix Achat :** {row['Prix_Achat']} DA")
+            st.write(f"**📈 Marge :** {(float(row['PPA']) - float(row['Prix_Achat'])):.2f} DA")
+        
         st.divider()
+        if row['Description']:
+            st.info(f"📝 **Description** : {row['Description']}")
+            st.divider()
         p_text = f"{row['PPA']} DA" if row['PPA'] > 0 else "Prix sur demande"
         st.metric("Prix Unitaire", p_text)
         msg = urllib.parse.quote(f"Pharmaciel - {row['Produit']} | Prix: {row['PPA']} DA")
@@ -427,12 +484,14 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
                 n = c_a1.text_input("Désignation")
                 l = c_a2.text_input("Labo")
                 p = c_a1.number_input("Prix (PPA)", 0.0)
+                pa = c_a2.number_input("Prix d'Achat", 0.0)
                 q = c_a2.number_input("Quantité", 0)
                 d = c_a1.text_input("DDP (MM/YY)")
                 f = c_a2.text_input("Famille")
+                desc = st.text_area("Description du produit")
                 promo = st.checkbox("Mettre en promotion")
                 if st.form_submit_button("Enregistrer le produit"):
-                    new_row = pd.DataFrame([{"Produit": n.upper(), "Laboratoire": l.upper(), "PPA": p, "Quantité": q, "DDP": d, "Famille": f, "image_path": "", "Promo": promo}])
+                    new_row = pd.DataFrame([{"Produit": n.upper(), "Laboratoire": l.upper(), "PPA": p, "Prix_Achat": pa, "Quantité": q, "DDP": d, "Famille": f, "image_path": "", "Promo": promo, "Description": desc}])
                     save_data(pd.concat([df_para, new_row], ignore_index=True))
                     st.success(f"Produit {n} ajouté !")
                     st.rerun()
@@ -450,9 +509,11 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
                     new_n = c1.text_input("Désignation", value=p_data['Produit'])
                     new_l = c2.text_input("Laboratoire", value=p_data['Laboratoire'])
                     new_p = c1.number_input("Prix (PPA)", value=float(p_data['PPA']))
+                    new_pa = c2.number_input("Prix d'Achat", value=float(p_data['Prix_Achat']))
                     new_q = c2.number_input("Quantité en stock", value=int(p_data['Quantité']))
                     new_d = c1.text_input("DDP", value=p_data['DDP'])
                     new_f = c2.text_input("Famille", value=p_data['Famille'])
+                    new_desc = st.text_area("Description", value=p_data['Description'])
                     new_promo = st.checkbox("Produit en PROMO", value=bool(p_data['Promo']))
                     
                     col_btn1, col_btn2 = st.columns(2)
@@ -460,10 +521,12 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
                         df_para.at[p_idx, 'Produit'] = new_n.upper()
                         df_para.at[p_idx, 'Laboratoire'] = new_l.upper()
                         df_para.at[p_idx, 'PPA'] = new_p
+                        df_para.at[p_idx, 'Prix_Achat'] = new_pa
                         df_para.at[p_idx, 'Quantité'] = new_q
                         df_para.at[p_idx, 'DDP'] = new_d
                         df_para.at[p_idx, 'Famille'] = new_f
                         df_para.at[p_idx, 'Promo'] = new_promo
+                        df_para.at[p_idx, 'Description'] = new_desc
                         save_data(df_para)
                         st.success("Modifications enregistrées !")
                         st.rerun()
@@ -492,6 +555,25 @@ elif menu == "📊 Statistiques":
     c3.metric("Taux Images", f"{int((img_ok/total_produits)*100)}%" if total_produits > 0 else "0%")
     c4.metric("Alertes Stock", stock_bas, delta=-stock_bas, delta_color="inverse")
     
+    if st.session_state.user_role == "Responsable":
+        # Analyse Financière
+        st.divider()
+        st.subheader("💰 Performance Financière")
+        df_sales = pd.read_csv(SALES_DB) if os.path.exists(SALES_DB) else pd.DataFrame()
+        if not df_sales.empty:
+            ca_total = df_sales['Total'].sum()
+            nb_ventes = len(df_sales)
+            col_f1, col_f2 = st.columns(2)
+            col_f1.metric("Chiffre d'Affaires Cumulé", f"{ca_total:,.0f} DA")
+            col_f2.metric("Nombre de Ventes", nb_ventes)
+            
+            st.write("**Évolution des Ventes (CA)**")
+            df_sales['Date'] = pd.to_datetime(df_sales['Date'])
+            df_sales_daily = df_sales.set_index('Date').resample('D')['Total'].sum()
+            st.line_chart(df_sales_daily)
+        else:
+            st.info("Aucune vente enregistrée pour le moment.")
+    
     st.divider()
     
     col_chart1, col_chart2 = st.columns(2)
@@ -516,15 +598,22 @@ elif menu in ["🛒 Mon Panier", "🛒 Commandes Client"]:
             for k, v in st.session_state.cart.items()
         ])
         st.table(df_cart)
-        st.subheader(f"Total Commande : {df_cart['Total'].sum()} DA")
+        total_cmd = df_cart['Total'].sum()
+        st.subheader(f"Total Commande : {total_cmd} DA")
         
-        c1, c2 = st.columns(2)
-        if c1.button("🗑️ Vider tout le panier", type="primary"):
+        c1, c2, c3 = st.columns(3)
+        if c1.button("🗑️ Vider le panier", type="primary", use_container_width=True):
             st.session_state.cart = {}
             st.rerun()
         
+        inv_pdf = generate_invoice(st.session_state.cart, total_cmd)
+        c2.download_button("📄 Générer Facture PDF", inv_pdf, f"Facture_{datetime.now().strftime('%Y%m%d')}.pdf", "application/pdf", use_container_width=True)
+        
         msg_cart = f"Bonjour Pharmaciel, voici ma commande :\n" + "\n".join([f"- {k} (x{v['qty']}) : {v['price']*v['qty']} DA" for k,v in st.session_state.cart.items()])
-        c2.link_button("✅ Confirmer & Envoyer WhatsApp", f"https://wa.me/?text={urllib.parse.quote(msg_cart)}", use_container_width=True)
+        if c3.button("✅ Valider & WhatsApp", use_container_width=True):
+            save_sale(st.session_state.cart, total_cmd, st.session_state.current_user)
+            st.success("Commande enregistrée en historique !")
+            st.link_button("Ouvrir WhatsApp", f"https://wa.me/?text={urllib.parse.quote(msg_cart)}")
 
 # --- ONGLET 3 : ADMIN ---
 elif menu == "⚙️ Admin":
