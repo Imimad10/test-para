@@ -82,9 +82,19 @@ login()
 df_para = load_data()
 st.sidebar.title(f"👤 {st.session_state.current_user}")
 st.sidebar.write(f"Rôle : **{st.session_state.user_role}**")
+
+st.sidebar.divider()
+
 nav_options = ["📦 Stock & Catalogue", "📊 Statistiques"]
 if st.session_state.user_role == "Responsable": nav_options.append("⚙️ Admin")
 menu = st.sidebar.radio("Navigation", nav_options)
+
+st.sidebar.divider()
+if st.sidebar.button("🚪 Déconnexion", type="secondary", use_container_width=True):
+    st.session_state.auth = False
+    st.session_state.user_role = None
+    st.session_state.current_user = None
+    st.rerun()
 
 # --- DIALOGUE DÉTAILS ---
 @st.dialog("Fiche Produit", width="large")
