@@ -675,11 +675,8 @@ elif menu == "🤖 Conseiller IA":
 
     genai.configure(api_key=api_key)
     
-    # Tentative avec le modèle le plus récent, sinon repli sur gemini-pro
-    try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
-    except:
-        model = genai.GenerativeModel('gemini-pro')
+    # On définit les modèles à essayer par ordre de préférence
+    models_to_try = ['gemini-1.5-flash', 'gemini-pro']
 
     # Préparation du contexte (Base de données)
     context = "Tu es l'assistant expert de Pharmaciel. Voici notre catalogue actuel :\n"
@@ -708,12 +705,18 @@ elif menu == "🤖 Conseiller IA":
         with st.chat_message("assistant"):
             try:
                 full_prompt = f"{context}\n\nUtilisateur: {prompt}"
-                response = model.generate_content(full_prompt)
+                # Tentative intelligente avec repli
+                try:
+                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    response = model.generate_content(full_prompt)
+                except Exception:
+                    model = genai.GenerativeModel('gemini-pro')
+                    response = model.generate_content(full_prompt)
+                    
                 st.markdown(response.text)
                 st.session_state.messages.append({"role": "assistant", "content": response.text})
             except Exception as e:
-                st.error(f"❌ L'IA ne répond pas. Erreur : {str(e)}")
-                st.info("Ceci peut être dû à une clé API invalide ou à une restriction régionale de Google.")
+                st.error(f"❌ L'IA ne répond pas (Essai de tous les modèles). Erreur : {str(e)}")
 
 # --- ONGLET 5 : ADMIN ---
 elif menu == "⚙️ Admin":
@@ -730,11 +733,19 @@ elif menu == "⚙️ Admin":
             else:
                 try:
                     genai.configure(api_key=key)
-                    t_model = genai.GenerativeModel('gemini-1.5-flash')
-                    t_model.generate_content("test")
-                    st.success("✅ Connexion réussie ! L'IA fonctionne.")
+                    # Test du premier modèle dispo
+                    success = False
+                    for m_name in ['gemini-1.5-flash', 'gemini-pro']:
+                        try:
+                            t_model = genai.GenerativeModel(m_name)
+                            t_model.generate_content("test")
+                            st.success(f"✅ Succès avec le modèle : {m_name}")
+                            success = True
+                            break
+                        except: continue
+                    if not success: st.error("❌ Aucun modèle accessible avec cette clé.")
                 except Exception as e:
-                    st.error(f"❌ Échec : {str(e)}")
+                    st.error(f"❌ Échec global : {str(e)}")
     u_db = load_users()
     st.subheader("👥 Gestion de l'équipe")
     for index, row in u_db.iterrows():
