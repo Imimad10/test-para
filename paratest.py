@@ -97,6 +97,13 @@ def load_data():
         df['Prix_Achat'] = pd.to_numeric(df['Prix_Achat'], errors='coerce').fillna(0)
         df['Quantité'] = pd.to_numeric(df['Quantité'], errors='coerce').fillna(0)
         df['Promo'] = df['Promo'].astype(bool)
+        
+        # --- SUPPRESSION DES DOUBLONS (Même Produit + Même Prix) ---
+        # On groupe par Produit et PPA pour sommer les quantités et garder les autres infos
+        agg_rules = {c: 'first' for c in df.columns if c not in ['Produit', 'PPA', 'Quantité']}
+        agg_rules['Quantité'] = 'sum'
+        df = df.groupby(['Produit', 'PPA'], as_index=False).agg(agg_rules)
+        
         return df.fillna("")
     except: return pd.DataFrame(columns=cols)
 
