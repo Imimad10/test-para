@@ -73,6 +73,11 @@ def login():
                     st.session_state.auth, st.session_state.user_role, st.session_state.current_user = True, match['role'].values[0], u
                     st.rerun()
                 else: st.error("Identifiants incorrects.")
+        
+        st.divider()
+        if st.button("🌐 Accès Catalogue Public (Sans connexion)", use_container_width=True):
+            st.session_state.auth, st.session_state.user_role, st.session_state.current_user = True, "Client", "Visiteur"
+            st.rerun()
         st.stop()
 
 # --- 4. INTERFACE ---
@@ -81,12 +86,17 @@ login()
 
 df_para = load_data()
 st.sidebar.title(f"👤 {st.session_state.current_user}")
-st.sidebar.write(f"Rôle : **{st.session_state.user_role}**")
+if st.session_state.user_role != "Client":
+    st.sidebar.write(f"Rôle : **{st.session_state.user_role}**")
 
 st.sidebar.divider()
 
-nav_options = ["📦 Stock & Catalogue", "📊 Statistiques"]
-if st.session_state.user_role == "Responsable": nav_options.append("⚙️ Admin")
+if st.session_state.user_role == "Client":
+    nav_options = ["📦 Catalogue"]
+else:
+    nav_options = ["📦 Stock & Catalogue", "📊 Statistiques"]
+    if st.session_state.user_role == "Responsable": nav_options.append("⚙️ Admin")
+
 menu = st.sidebar.radio("Navigation", nav_options)
 
 st.sidebar.divider()
@@ -114,10 +124,15 @@ def show_details(row):
         st.markdown(f'<a href="https://wa.me/?text={msg}" target="_blank" style="background-color:#25D366; color:white; padding:10px; border-radius:5px; text-decoration:none; display:block; text-align:center;">Partager WhatsApp</a>', unsafe_allow_html=True)
 
 # --- ONGLET 1 : CATALOGUE ---
-if menu == "📦 Stock & Catalogue":
-    st.title("📦 Gestion Dépôt")
-    t_tabs_names = ["📋 Catalogue", "🖼️ Images & Web", "🔄 Sync Excel"]
-    if st.session_state.user_role == "Responsable": t_tabs_names.extend(["➕ Ajout", "✏️ Modif/Suppr"])
+if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
+    st.title("📦 Catalogue Produits" if st.session_state.user_role == "Client" else "📦 Gestion Dépôt")
+    
+    if st.session_state.user_role == "Client":
+        t_tabs_names = ["📋 Catalogue"]
+    else:
+        t_tabs_names = ["📋 Catalogue", "🖼️ Images & Web", "🔄 Sync Excel"]
+        if st.session_state.user_role == "Responsable": t_tabs_names.extend(["➕ Ajout", "✏️ Modif/Suppr"])
+    
     tabs = st.tabs(t_tabs_names)
 
     with tabs[0]: # Catalogue
