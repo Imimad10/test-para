@@ -709,10 +709,11 @@ elif menu == "🤖 Conseiller IA":
             st.rerun()
         st.stop()
 
+    # Configuration forcée pour éviter les erreurs v1beta sur Streamlit Cloud
     genai.configure(api_key=api_key)
     
-    # On définit les modèles à essayer par ordre de préférence
-    models_to_try = ['gemini-1.5-flash', 'gemini-pro', 'gemini-1.0-pro']
+    # On définit les modèles à essayer avec le préfixe complet
+    models_to_try = ['models/gemini-1.5-flash', 'models/gemini-pro', 'models/gemini-1.0-pro']
 
     # Préparation du contexte (Base de données)
     context = "Tu es l'assistant expert de Pharmaciel. Voici notre catalogue actuel :\n"
@@ -744,7 +745,7 @@ elif menu == "🤖 Conseiller IA":
                 # Tentative intelligente avec repli
                 last_err = ""
                 success = False
-                for m_name in ['gemini-1.5-flash', 'gemini-pro', 'gemini-1.0-pro']:
+                for m_name in ['models/gemini-1.5-flash', 'models/gemini-pro', 'models/gemini-1.0-pro']:
                     try:
                         model = genai.GenerativeModel(m_name)
                         response = model.generate_content(full_prompt)
@@ -779,7 +780,7 @@ elif menu == "⚙️ Admin":
                     # Test du premier modèle dispo
                     success = False
                     errors = []
-                    for m_name in ['gemini-1.5-flash', 'gemini-pro', 'gemini-1.0-pro']:
+                    for m_name in ['models/gemini-1.5-flash', 'models/gemini-pro', 'models/gemini-1.0-pro']:
                         try:
                             t_model = genai.GenerativeModel(m_name)
                             t_model.generate_content("test")
