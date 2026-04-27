@@ -126,28 +126,41 @@ def get_image_base64(filename):
 
 def generate_pdf_catalogue(df):
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=30, rightMargin=30, topMargin=30, bottomMargin=30)
     elements = []
     styles = getSampleStyleSheet()
     
+    # Style personnalisé pour le tableau
+    style_p = styles["Normal"]
+    style_p.fontSize = 8
+    style_p.leading = 10
+    
     # Titre
     elements.append(Paragraph(f"<b>CATALOGUE PRODUITS - PHARMACIEL</b>", styles['Title']))
-    elements.append(Paragraph(f"Date : {datetime.now().strftime('%d/%m/%Y')}", styles['Normal']))
+    elements.append(Paragraph(f"Date : {datetime.now().strftime('%d/%m/%Y')} | Total : {len(df)} produits", styles['Normal']))
     elements.append(Spacer(1, 20))
     
     # Table de données
-    data = [["Produit", "Laboratoire", "Famille", "Prix (DA)"]]
+    data = [[Paragraph("<b>Produit</b>", style_p), Paragraph("<b>Labo</b>", style_p), Paragraph("<b>Famille</b>", style_p), Paragraph("<b>Prix</b>", style_p)]]
     for _, row in df.iterrows():
-        data.append([row['Produit'], row['Laboratoire'], row['Famille'], f"{row['PPA']}"])
+        p_name = Paragraph(str(row['Produit']), style_p)
+        p_labo = Paragraph(str(row['Laboratoire']), style_p)
+        p_fam = Paragraph(str(row['Famille']), style_p)
+        p_price = Paragraph(f"<b>{row['PPA']} DA</b>", style_p)
+        data.append([p_name, p_labo, p_fam, p_price])
         
-    t = Table(data, colWidths=[200, 120, 100, 80])
+    # Ajustement des largeurs (Total ~535 pour A4 avec marges)
+    t = Table(data, colWidths=[230, 110, 110, 85])
     t.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.cadetblue),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('LEFTPADDING', (0, 0), (-1, -1), 5),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
     ]))
     elements.append(t)
     doc.build(elements)
