@@ -67,24 +67,44 @@ st.markdown("""
     }
     
     /* Uniformisation des vignettes */
-    .stImage > img {
-        height: 160px !important;
-        object-fit: contain !important;
-        background: #fdfdfd;
-        border-radius: 8px;
-        margin-bottom: 10px;
-    }
-    .vignette-title {
-        height: 45px;
-        overflow: hidden;
-        margin-bottom: 5px;
-        line-height: 1.2;
-    }
     [data-testid="stVerticalBlockBorderWrapper"] {
-        min-height: 380px !important;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
+        height: 420px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: flex-start !important;
+        padding: 10px !important;
+    }
+    
+    /* Conteneur d'image forcé */
+    .stImage {
+        height: 180px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background-color: #f9f9f9 !important;
+        border-radius: 8px !important;
+        overflow: hidden !important;
+        margin-bottom: 10px !important;
+    }
+    .stImage img {
+        max-height: 180px !important;
+        width: auto !important;
+        object-fit: contain !important;
+    }
+    
+    .vignette-title {
+        height: 40px !important;
+        overflow: hidden !important;
+        font-size: 0.9em !important;
+        line-height: 1.2 !important;
+        margin-bottom: 10px !important;
+    }
+    
+    .vignette-price {
+        height: 30px !important;
+        color: #007bff !important;
+        font-weight: bold !important;
+        font-size: 1.1em !important;
     }
     
     /* Sidebar styling */
@@ -481,11 +501,11 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
                             
                             st.markdown(f"<div class='vignette-title'><b>{row['Produit']}</b></div>", unsafe_allow_html=True)
                             p_disp = f"{row['PPA']} DA" if row['PPA'] > 0 else "Prix sur demande"
-                            st.write(f"<span style='color:#007bff; font-weight:bold; font-size:1.1em;'>{p_disp}</span>", unsafe_allow_html=True)
+                            st.markdown(f"<div class='vignette-price'>{p_disp}</div>", unsafe_allow_html=True)
                             
-                            st.write("") # Spacer
+                            st.write("") # Petit espace additionnel
                             
-                            c_b1, c_b2 = st.columns(2)
+                            c_b1, c_b2 = st.columns([1, 1])
                             real_key_idx = start_idx + i + j
                             if c_b1.button("Détails", key=f"v_{real_key_idx}", use_container_width=True): show_details(row)
                             if c_b2.button("🛒", key=f"add_{real_key_idx}", use_container_width=True):
