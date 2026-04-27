@@ -139,6 +139,10 @@ def save_data(df, path=DB_PATH):
     df.to_csv(path, index=False, encoding='utf-8-sig')
     st.cache_data.clear()
 
+def update_cart_qty(p_name, key):
+    if key in st.session_state:
+        st.session_state.cart[p_name]['qty'] = st.session_state[key]
+
 def clean_filename(text):
     if pd.isna(text): return ""
     return re.sub(r'\W+', '_', str(text).strip()).upper()
@@ -291,7 +295,9 @@ if st.session_state.cart:
     items_to_remove = []
     for p_name, details in st.session_state.cart.items():
         c_p1, c_p2 = st.sidebar.columns([3, 1])
-        c_p1.write(f"**{p_name}**\n{details['qty']} x {details['price']} DA")
+        # Petit champ numérique pour la sidebar
+        c_p1.number_input(f"{p_name} ({details['price']} DA)", min_value=1, value=details['qty'], key=f"q_side_{p_name}", on_change=update_cart_qty, args=(p_name, f"q_side_{p_name}"))
+        
         if c_p2.button("❌", key=f"del_{p_name}"):
             items_to_remove.append(p_name)
         total_panier += details['qty'] * details['price']
@@ -608,12 +614,9 @@ elif menu in ["🛒 Mon Panier", "🛒 Commandes Client"]:
         for k, v in st.session_state.cart.items():
             col1, col2, col3, col4 = st.columns([3, 2, 2, 1])
             col1.write(f"**{k}**")
-            new_q = col2.number_input("Qté", min_value=1, value=v['qty'], key=f"edit_q_{k}")
-            if new_q != v['qty']:
-                st.session_state.cart[k]['qty'] = new_q
-                st.rerun()
+            col2.number_input("Quantité", min_value=1, value=v['qty'], key=f"edit_q_{k}", on_change=update_cart_qty, args=(k, f"edit_q_{k}"))
             
-            line_total = v['price'] * new_q
+            line_total = v['price'] * v['qty']
             col3.write(f"{line_total:,.2f} DA")
             total_cmd += line_total
             
