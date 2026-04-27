@@ -137,7 +137,9 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
 
     with tabs[0]: # Catalogue
         c1, c2 = st.columns([3, 1])
-        search = c1.text_input("🔍 Rechercher un produit...")
+        # Liste des suggestions (Produits uniques)
+        suggestions = sorted(df_para['Produit'].unique())
+        search = c1.selectbox("🔍 Rechercher un produit...", options=suggestions, index=None, placeholder="Tapez le nom d'un produit...")
         with c2:
             st.write("⚙️ **Filtres**")
             tri_az = st.toggle("Tri alphabétique (A-Z)")
