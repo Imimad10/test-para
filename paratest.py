@@ -78,9 +78,16 @@ def load_data():
     cols = ['Produit', 'Laboratoire', 'Quantité', 'PPA', 'image_path', 'Famille', 'DDP']
     if not os.path.exists(DB_PATH): return pd.DataFrame(columns=cols)
     try:
-        df = pd.read_csv(DB_PATH, encoding='utf-8-sig', dtype={'image_path': str, 'Produit': str, 'DDP': str})
+        df = pd.read_csv(DB_PATH, encoding='utf-8-sig')
+        # Renommage flexible
+        df = df.rename(columns={'Quantité  Dépot': 'Quantité', 'Fournisseur': 'Famille'})
+        
+        # Gestion des colonnes dupliquées (ex: deux colonnes 'Quantité')
+        df = df.loc[:, ~df.columns.duplicated()]
+        
         for c in cols:
             if c not in df.columns: df[c] = ""
+            
         # Nettoyage numérique
         df['PPA'] = pd.to_numeric(df['PPA'], errors='coerce').fillna(0)
         df['Quantité'] = pd.to_numeric(df['Quantité'], errors='coerce').fillna(0)
@@ -250,7 +257,8 @@ def show_details(row):
         val_tot = float(row['PPA']) * float(row['Quantité'])
         st.write(f"**💰 Valeur Stock :** {val_tot:,.2f} DA")
         st.divider()
-        st.metric("Prix Unitaire", f"{row['PPA']} DA")
+        p_text = f"{row['PPA']} DA" if row['PPA'] > 0 else "Prix sur demande"
+        st.metric("Prix Unitaire", p_text)
         msg = urllib.parse.quote(f"Pharmaciel - {row['Produit']} | Prix: {row['PPA']} DA")
         st.markdown(f'<a href="https://wa.me/?text={msg}" target="_blank" style="background-color:#25D366; color:white; padding:10px; border-radius:5px; text-decoration:none; display:block; text-align:center;">Partager WhatsApp</a>', unsafe_allow_html=True)
 
@@ -276,7 +284,8 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
                     img_n = get_image_base64(n_row['image_path'])
                     if img_n: st.image(img_n, use_container_width=True)
                     st.caption(f"**{n_row['Produit']}**")
-                    st.write(f"**{n_row['PPA']} DA**")
+                    p_new = f"{n_row['PPA']} DA" if n_row['PPA'] > 0 else "Prix NC"
+                    st.write(f"**{p_new}**")
         
         c1, c2, c3 = st.columns([3, 1, 1])
         # Liste des suggestions (Produits uniques)
@@ -321,7 +330,8 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
                             if row['Quantité'] < 5: st.caption("🔴 Stock Faible")
                             
                             st.markdown(f"**{row['Produit']}**")
-                            st.markdown(f"### {row['PPA']} DA")
+                            p_disp = f"{row['PPA']} DA" if row['PPA'] > 0 else "Prix sur demande"
+                            st.markdown(f"### {p_disp}")
                             
                             c_b1, c_b2 = st.columns(2)
                             if c_b1.button("Détails", key=f"v_{i+j}", use_container_width=True): show_details(row)
