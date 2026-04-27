@@ -202,7 +202,7 @@ def generate_invoice(cart_dict, total_val):
     elements = []
     styles = getSampleStyleSheet()
     
-    elements.append(Paragraph("<b>FACTURE - PHARMACIEL PRO</b>", styles['Title']))
+    elements.append(Paragraph("<b>FACTURE PROFORMA - PHARMACIEL PRO</b>", styles['Title']))
     elements.append(Paragraph(f"Date : {datetime.now().strftime('%d/%m/%Y %H:%M')}", styles['Normal']))
     elements.append(Spacer(1, 20))
     
@@ -596,17 +596,36 @@ elif menu == "📊 Statistiques":
 
 # --- ONGLET 3 : PANIER CLIENT (VUE DÉTAILLÉE) ---
 elif menu in ["🛒 Mon Panier", "🛒 Commandes Client"]:
-    st.title("🛒 Gestion du Panier")
+    st.title("🛒 Gestion du Panier & Proforma")
     if not st.session_state.cart:
         st.info("Le panier est vide.")
     else:
-        df_cart = pd.DataFrame([
-            {"Produit": k, "Prix Unitaire": v['price'], "Quantité": v['qty'], "Total": v['price'] * v['qty']}
-            for k, v in st.session_state.cart.items()
-        ])
-        st.table(df_cart)
-        total_cmd = df_cart['Total'].sum()
-        st.subheader(f"Total Commande : {total_cmd} DA")
+        # Interface de modification des quantités
+        st.subheader("Articles dans votre panier")
+        items_to_del = []
+        total_cmd = 0
+        
+        for k, v in st.session_state.cart.items():
+            col1, col2, col3, col4 = st.columns([3, 2, 2, 1])
+            col1.write(f"**{k}**")
+            new_q = col2.number_input("Qté", min_value=1, value=v['qty'], key=f"edit_q_{k}")
+            if new_q != v['qty']:
+                st.session_state.cart[k]['qty'] = new_q
+                st.rerun()
+            
+            line_total = v['price'] * new_q
+            col3.write(f"{line_total:,.2f} DA")
+            total_cmd += line_total
+            
+            if col4.button("🗑️", key=f"del_v_{k}"):
+                items_to_del.append(k)
+        
+        for item in items_to_del:
+            del st.session_state.cart[item]
+            st.rerun()
+            
+        st.divider()
+        st.subheader(f"Total Proforma : {total_cmd:,.2f} DA")
         
         c1, c2, c3 = st.columns(3)
         if c1.button("🗑️ Vider le panier", type="primary", use_container_width=True):
@@ -614,12 +633,12 @@ elif menu in ["🛒 Mon Panier", "🛒 Commandes Client"]:
             st.rerun()
         
         inv_pdf = generate_invoice(st.session_state.cart, total_cmd)
-        c2.download_button("📄 Générer Facture PDF", inv_pdf, f"Facture_{datetime.now().strftime('%Y%m%d')}.pdf", "application/pdf", use_container_width=True)
+        c2.download_button("📄 Facture Proforma PDF", inv_pdf, f"Proforma_{datetime.now().strftime('%Y%m%d')}.pdf", "application/pdf", use_container_width=True)
         
-        msg_cart = f"Bonjour Pharmaciel, voici ma commande :\n" + "\n".join([f"- {k} (x{v['qty']}) : {v['price']*v['qty']} DA" for k,v in st.session_state.cart.items()])
+        msg_cart = f"Bonjour Pharmaciel, voici ma commande (Proforma) :\n" + "\n".join([f"- {k} (x{v['qty']}) : {v['price']*v['qty']} DA" for k,v in st.session_state.cart.items()])
         if c3.button("✅ Valider & WhatsApp", use_container_width=True):
             save_sale(st.session_state.cart, total_cmd, st.session_state.current_user)
-            st.success("Commande enregistrée en historique !")
+            st.success("Proforma enregistrée !")
             st.link_button("Ouvrir WhatsApp", f"https://wa.me/?text={urllib.parse.quote(msg_cart)}")
 
 # --- ONGLET 3 : ADMIN ---
