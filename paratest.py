@@ -6,6 +6,11 @@ import base64
 import shutil
 import urllib.parse
 from datetime import datetime
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
+import io
 
 # --- 1. CONFIGURATION & CHEMINS ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -15,7 +20,59 @@ USER_DB = os.path.join(BASE_DIR, 'users.csv')
 
 if not os.path.exists(IMG_DIR): os.makedirs(IMG_DIR)
 
-# --- 2. FONCTIONS TECHNIQUES ---
+# --- 2. DESIGN SYSTEM (CSS) ---
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap');
+    
+    html, body, [class*="css"] {
+        font-family: 'Outfit', sans-serif;
+    }
+    
+    .stApp {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    }
+    
+    /* Card Premium Style */
+    [data-testid="stVerticalBlock"] > div > div > div > div.stColumn {
+        transition: transform 0.3s ease;
+    }
+    
+    .stContainer {
+        border-radius: 15px !important;
+        border: none !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important;
+        background: rgba(255, 255, 255, 0.8) !important;
+        backdrop-filter: blur(10px);
+    }
+    
+    .stContainer:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important;
+    }
+    
+    /* Custom Buttons */
+    .stButton > button {
+        border-radius: 10px !important;
+        font-weight: 600 !important;
+        transition: all 0.2s !important;
+    }
+    
+    .stButton > button:hover {
+        background-color: #007bff !important;
+        color: white !important;
+        border-color: #007bff !important;
+    }
+    
+    /* Sidebar styling */
+    [data-testid="stSidebar"] {
+        background-color: #ffffff !important;
+        border-right: 1px solid #eee;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# --- 3. FONCTIONS TECHNIQUES ---
 
 def load_data():
     cols = ['Produit', 'Laboratoire', 'Quantité', 'PPA', 'image_path', 'Famille', 'DDP']
@@ -24,6 +81,9 @@ def load_data():
         df = pd.read_csv(DB_PATH, encoding='utf-8-sig', dtype={'image_path': str, 'Produit': str, 'DDP': str})
         for c in cols:
             if c not in df.columns: df[c] = ""
+        # Nettoyage numérique
+        df['PPA'] = pd.to_numeric(df['PPA'], errors='coerce').fillna(0)
+        df['Quantité'] = pd.to_numeric(df['Quantité'], errors='coerce').fillna(0)
         return df.fillna("")
     except: return pd.DataFrame(columns=cols)
 
@@ -55,9 +115,40 @@ def get_image_base64(filename):
         except: return None
     return None
 
+def generate_pdf_catalogue(df):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    # Titre
+    elements.append(Paragraph(f"<b>CATALOGUE PRODUITS - PHARMACIEL</b>", styles['Title']))
+    elements.append(Paragraph(f"Date : {datetime.now().strftime('%d/%m/%Y')}", styles['Normal']))
+    elements.append(Spacer(1, 20))
+    
+    # Table de données
+    data = [["Produit", "Laboratoire", "Famille", "Prix (DA)"]]
+    for _, row in df.iterrows():
+        data.append([row['Produit'], row['Laboratoire'], row['Famille'], f"{row['PPA']}"])
+        
+    t = Table(data, colWidths=[200, 120, 100, 80])
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.cadetblue),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+    ]))
+    elements.append(t)
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
+
 # --- 3. AUTHENTIFICATION ---
 def login():
     if 'auth' not in st.session_state: st.session_state.auth = False
+    if 'cart' not in st.session_state: st.session_state.cart = {}
     if not st.session_state.auth:
         st.title("🔐 Pharmaciel Pro")
         
@@ -97,13 +188,44 @@ if st.session_state.user_role != "Client":
 
 st.sidebar.divider()
 
+# --- FILTRES DE NAVIGATION ---
+with st.sidebar.expander("🎯 Filtres & Recherche", expanded=True):
+    f_famille = st.selectbox("Famille", ["Toutes"] + sorted([f for f in df_para['Famille'].unique() if f]))
+    f_labo = st.selectbox("Laboratoire", ["Tous"] + sorted([l for l in df_para['Laboratoire'].unique() if l]))
+    f_alerte = st.selectbox("Alertes Stock/DDP", ["Aucune", "Stock Bas (<5)", "Péremption Proche"])
+
 if st.session_state.user_role == "Client":
-    nav_options = ["📦 Catalogue"]
+    nav_options = ["📦 Catalogue", "🛒 Mon Panier"]
 else:
-    nav_options = ["📦 Stock & Catalogue", "📊 Statistiques"]
+    nav_options = ["📦 Stock & Catalogue", "🛒 Commandes Client", "📊 Statistiques"]
     if st.session_state.user_role == "Responsable": nav_options.append("⚙️ Admin")
 
 menu = st.sidebar.radio("Navigation", nav_options)
+
+# --- PANIER (SIDEBAR) ---
+if st.session_state.cart:
+    st.sidebar.divider()
+    st.sidebar.subheader("🛒 Votre Panier")
+    total_panier = 0
+    items_to_remove = []
+    for p_name, details in st.session_state.cart.items():
+        c_p1, c_p2 = st.sidebar.columns([3, 1])
+        c_p1.write(f"**{p_name}**\n{details['qty']} x {details['price']} DA")
+        if c_p2.button("❌", key=f"del_{p_name}"):
+            items_to_remove.append(p_name)
+        total_panier += details['qty'] * details['price']
+    
+    for item in items_to_remove:
+        del st.session_state.cart[item]
+        st.rerun()
+        
+    st.sidebar.write(f"**Total : {total_panier} DA**")
+    
+    msg_cart = f"Bonjour Pharmaciel, je souhaite commander :\n" + "\n".join([f"- {k} (x{v['qty']})" for k,v in st.session_state.cart.items()])
+    st.sidebar.link_button("🚀 Envoyer Commande WhatsApp", f"https://wa.me/?text={urllib.parse.quote(msg_cart)}", use_container_width=True)
+    if st.sidebar.button("🗑️ Vider le panier", use_container_width=True):
+        st.session_state.cart = {}
+        st.rerun()
 
 st.sidebar.divider()
 if st.sidebar.button("🚪 Déconnexion", type="secondary", use_container_width=True):
@@ -124,8 +246,11 @@ def show_details(row):
         st.header(row['Produit'])
         st.write(f"**🔬 Labo :** {row['Laboratoire']}")
         st.write(f"**📅 DDP :** {row['DDP']}")
+        st.write(f"**📦 Stock :** {row['Quantité']} unités")
+        val_tot = float(row['PPA']) * float(row['Quantité'])
+        st.write(f"**💰 Valeur Stock :** {val_tot:,.2f} DA")
         st.divider()
-        st.metric("Prix", f"{row['PPA']} DA")
+        st.metric("Prix Unitaire", f"{row['PPA']} DA")
         msg = urllib.parse.quote(f"Pharmaciel - {row['Produit']} | Prix: {row['PPA']} DA")
         st.markdown(f'<a href="https://wa.me/?text={msg}" target="_blank" style="background-color:#25D366; color:white; padding:10px; border-radius:5px; text-decoration:none; display:block; text-align:center;">Partager WhatsApp</a>', unsafe_allow_html=True)
 
@@ -142,19 +267,44 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
     tabs = st.tabs(t_tabs_names)
 
     with tabs[0]: # Catalogue
-        c1, c2 = st.columns([3, 1])
+        # --- SECTION NOUVEAUTÉS ---
+        with st.expander("✨ Nouveautés & Promotions", expanded=False):
+            new_items = df_para.tail(5) # Les 5 derniers ajoutés
+            c_new = st.columns(5)
+            for idx, n_row in enumerate(new_items.to_dict('records')):
+                with c_new[idx]:
+                    img_n = get_image_base64(n_row['image_path'])
+                    if img_n: st.image(img_n, use_container_width=True)
+                    st.caption(f"**{n_row['Produit']}**")
+        
+        c1, c2, c3 = st.columns([3, 1, 1])
         # Liste des suggestions (Produits uniques)
         suggestions = sorted(df_para['Produit'].unique())
-        search = c1.selectbox("🔍 Rechercher un produit...", options=suggestions, index=None, placeholder="Tapez le nom d'un produit...")
+        with c1:
+            search = st.selectbox("🔍 Rechercher un produit...", options=suggestions, index=None, placeholder="Tapez le nom d'un produit...")
         with c2:
+            st.write("")
+            pdf_buf = generate_pdf_catalogue(df_para)
+            st.download_button("📄 PDF Catalogue", pdf_buf, "Catalogue_Pharmaciel.pdf", "application/pdf", use_container_width=True)
+        with c3:
             st.write("⚙️ **Filtres**")
-            tri_az = st.toggle("Tri alphabétique (A-Z)")
-            hide = st.toggle("Images uniquement")
+            tri_az = st.toggle("Tri A-Z")
+            hide = st.toggle("Photos")
         
         filt = df_para.copy()
+        # Application des filtres sidebar
+        if f_famille != "Toutes": filt = filt[filt['Famille'] == f_famille]
+        if f_labo != "Tous": filt = filt[filt['Laboratoire'] == f_labo]
+        if f_alerte == "Stock Bas (<5)": filt = filt[filt['Quantité'] < 5]
+        if f_alerte == "Péremption Proche": 
+            # Logique simplifiée : contient 2024 ou 2025
+            filt = filt[filt['DDP'].str.contains('2024|2025', na=False)]
+            
         if search: filt = filt[filt['Produit'].str.contains(search, case=False, na=False)]
         if tri_az: filt = filt.sort_values(by='Produit', ascending=True)
         if hide: filt = filt[filt['image_path'].str.len() > 3]
+        
+        if filt.empty: st.warning("Aucun produit ne correspond à ces critères.")
         
         for i in range(0, len(filt), 4):
             cols = st.columns(4)
@@ -165,9 +315,22 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
                         with st.container(border=True):
                             img = get_image_base64(row['image_path'])
                             if img: st.image(img, use_container_width=True)
+                            
+                            # Badges
+                            if row['Quantité'] < 5: st.caption("🔴 Stock Faible")
+                            
                             st.markdown(f"**{row['Produit']}**")
                             st.markdown(f"💰 **{row['PPA']} DA**")
-                            if st.button("Détails", key=f"v_{i+j}"): show_details(row)
+                            
+                            c_b1, c_b2 = st.columns(2)
+                            if c_b1.button("Détails", key=f"v_{i+j}", use_container_width=True): show_details(row)
+                            if c_b2.button("🛒", key=f"add_{i+j}", use_container_width=True):
+                                if row['Produit'] in st.session_state.cart:
+                                    st.session_state.cart[row['Produit']]['qty'] += 1
+                                else:
+                                    st.session_state.cart[row['Produit']] = {'price': row['PPA'], 'qty': 1}
+                                st.toast(f"Ajouté : {row['Produit']}")
+                                st.rerun()
 
     with tabs[1]: # Images & Web
         st.subheader("🖼️ Gestion des visuels")
@@ -245,11 +408,51 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
 # --- ONGLET 2 : STATISTIQUES ---
 elif menu == "📊 Statistiques":
     st.title("📊 Analyse Pharmaciel")
-    total = len(df_para)
+    
+    total_produits = len(df_para)
     img_ok = df_para[df_para['image_path'].str.len() > 3].shape[0]
-    c1, c2 = st.columns(2)
-    c1.metric("Total Produits", total)
-    c2.metric("Taux d'images", f"{int((img_ok/total)*100)}%" if total > 0 else "0%")
+    valeur_stock = (df_para['PPA'] * df_para['Quantité']).sum()
+    stock_bas = df_para[df_para['Quantité'] < 5].shape[0]
+    
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Total Produits", total_produits)
+    c2.metric("Valeur Stock", f"{valeur_stock:,.0f} DA")
+    c3.metric("Taux Images", f"{int((img_ok/total_produits)*100)}%" if total_produits > 0 else "0%")
+    c4.metric("Alertes Stock", stock_bas, delta=-stock_bas, delta_color="inverse")
+    
+    st.divider()
+    
+    col_chart1, col_chart2 = st.columns(2)
+    with col_chart1:
+        st.subheader("📦 Top 10 Laboratoires")
+        labo_counts = df_para['Laboratoire'].value_counts().head(10)
+        st.bar_chart(labo_counts)
+    
+    with col_chart2:
+        st.subheader("🏷️ Répartition par Famille")
+        famille_counts = df_para['Famille'].value_counts()
+        st.bar_chart(famille_counts)
+
+# --- ONGLET 3 : PANIER CLIENT (VUE DÉTAILLÉE) ---
+elif menu in ["🛒 Mon Panier", "🛒 Commandes Client"]:
+    st.title("🛒 Gestion du Panier")
+    if not st.session_state.cart:
+        st.info("Le panier est vide.")
+    else:
+        df_cart = pd.DataFrame([
+            {"Produit": k, "Prix Unitaire": v['price'], "Quantité": v['qty'], "Total": v['price'] * v['qty']}
+            for k, v in st.session_state.cart.items()
+        ])
+        st.table(df_cart)
+        st.subheader(f"Total Commande : {df_cart['Total'].sum()} DA")
+        
+        c1, c2 = st.columns(2)
+        if c1.button("🗑️ Vider tout le panier", type="primary"):
+            st.session_state.cart = {}
+            st.rerun()
+        
+        msg_cart = f"Bonjour Pharmaciel, voici ma commande :\n" + "\n".join([f"- {k} (x{v['qty']}) : {v['price']*v['qty']} DA" for k,v in st.session_state.cart.items()])
+        c2.link_button("✅ Confirmer & Envoyer WhatsApp", f"https://wa.me/?text={urllib.parse.quote(msg_cart)}", use_container_width=True)
 
 # --- ONGLET 3 : ADMIN ---
 elif menu == "⚙️ Admin":
