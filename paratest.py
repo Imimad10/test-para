@@ -11,7 +11,6 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 import io
-import google.generativeai as genai
 
 # --- 1. CONFIGURATION & CHEMINS ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -66,47 +65,6 @@ st.markdown("""
         border-color: #007bff !important;
     }
     
-    /* Uniformisation des vignettes */
-    [data-testid="stVerticalBlockBorderWrapper"] {
-        height: 420px !important;
-        display: flex !important;
-        flex-direction: column !important;
-        justify-content: flex-start !important;
-        padding: 10px !important;
-    }
-    
-    /* Conteneur d'image forcé UNIQUEMENT pour le catalogue */
-    [data-testid="stVerticalBlockBorderWrapper"] .stImage {
-        height: 180px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        background-color: #f9f9f9 !important;
-        border-radius: 8px !important;
-        overflow: hidden !important;
-        margin-bottom: 10px !important;
-    }
-    [data-testid="stVerticalBlockBorderWrapper"] .stImage img {
-        max-height: 180px !important;
-        width: auto !important;
-        object-fit: contain !important;
-    }
-    
-    .vignette-title {
-        height: 40px !important;
-        overflow: hidden !important;
-        font-size: 0.9em !important;
-        line-height: 1.2 !important;
-        margin-bottom: 10px !important;
-    }
-    
-    .vignette-price {
-        height: 30px !important;
-        color: #007bff !important;
-        font-weight: bold !important;
-        font-size: 1.1em !important;
-    }
-    
     /* Sidebar styling */
     [data-testid="stSidebar"] {
         background-color: #ffffff !important;
@@ -117,7 +75,6 @@ st.markdown("""
 
 # --- 3. FONCTIONS TECHNIQUES ---
 
-@st.cache_data
 def load_data():
     cols = ['Produit', 'Laboratoire', 'Quantité', 'PPA', 'image_path', 'Famille', 'DDP', 'Promo', 'Prix_Achat', 'Description']
     if not os.path.exists(DB_PATH): return pd.DataFrame(columns=cols)
@@ -138,10 +95,11 @@ def load_data():
         # Nettoyage numérique
         df['PPA'] = pd.to_numeric(df['PPA'], errors='coerce').fillna(0)
         df['Prix_Achat'] = pd.to_numeric(df['Prix_Achat'], errors='coerce').fillna(0)
-        df['Quantité'] = pd.to_numeric(df['Quantité'].replace(',', '.', regex=True), errors='coerce').fillna(0)
+        df['Quantité'] = pd.to_numeric(df['Quantité'], errors='coerce').fillna(0)
         df['Promo'] = df['Promo'].astype(bool)
         
-        # --- SUPPRESSION DES DOUBLONS ---
+        # --- SUPPRESSION DES DOUBLONS (Même Produit + Même Prix) ---
+        # On groupe par Produit et PPA pour sommer les quantités et garder les autres infos
         agg_rules = {c: 'first' for c in df.columns if c not in ['Produit', 'PPA', 'Quantité']}
         agg_rules['Quantité'] = 'sum'
         df = df.groupby(['Produit', 'PPA'], as_index=False).agg(agg_rules)
@@ -167,7 +125,6 @@ def save_sale(cart_dict, total_val, user):
     else:
         df_sales.to_csv(SALES_DB, index=False, encoding='utf-8-sig')
 
-@st.cache_data
 def load_users():
     if not os.path.exists(USER_DB):
         df_init = pd.DataFrame([{"user": "admin", "pw": "1992", "role": "Responsable"}])
@@ -190,7 +147,6 @@ def clean_filename(text):
     if pd.isna(text): return ""
     return re.sub(r'\W+', '_', str(text).strip()).upper()
 
-@st.cache_data
 def get_image_base64(filename):
     if not filename or str(filename).lower() in ['nan', '']: return None
     path = os.path.join(IMG_DIR, str(filename).strip())
@@ -324,18 +280,12 @@ with st.sidebar.expander("🎯 Filtres & Recherche", expanded=True):
     f_alerte = st.selectbox("Alertes Stock/DDP", ["Aucune", "Stock Bas (<5)", "Péremption Proche"])
 
 if st.session_state.user_role == "Client":
-    nav_options = ["📦 Catalogue", "🛒 Mon Panier", "🤖 Conseiller IA"]
+    nav_options = ["📦 Catalogue", "🛒 Mon Panier"]
 else:
-    nav_options = ["📦 Stock & Catalogue", "🛒 Commandes Client", "📊 Statistiques", "🤖 Conseiller IA"]
+    nav_options = ["📦 Stock & Catalogue", "🛒 Commandes Client", "📊 Statistiques"]
     if st.session_state.user_role == "Responsable": nav_options.append("⚙️ Admin")
 
-# Gestion de la redirection IA
-if 'ai_query' in st.session_state and st.session_state.ai_query:
-    default_menu_idx = nav_options.index("🤖 Conseiller IA")
-else:
-    default_menu_idx = 0
-
-menu = st.sidebar.radio("Navigation", nav_options, index=default_menu_idx)
+menu = st.sidebar.radio("Navigation", nav_options)
 
 # --- PANIER (SIDEBAR) ---
 if st.session_state.cart:
@@ -374,12 +324,10 @@ if st.sidebar.button("🚪 Déconnexion", type="secondary", use_container_width=
 # --- DIALOGUE DÉTAILS ---
 @st.dialog("Fiche Produit", width="large")
 def show_details(row):
-    c1, c2 = st.columns([1, 1])
+    c1, c2 = st.columns(2)
     img = get_image_base64(row['image_path'])
     with c1:
-        if img: 
-            # Affichage taille réelle sans contrainte
-            st.image(img, use_container_width=True)
+        if img: st.image(img, use_container_width=True)
         else: st.warning("Image manquante")
     with c2:
         st.header(row['Produit'])
@@ -397,13 +345,6 @@ def show_details(row):
         if row['Description']:
             st.info(f"📝 **Description** : {row['Description']}")
             st.divider()
-        
-        # Bouton IA spécifique
-        if st.button("🤖 Demander conseil à l'IA sur ce produit", use_container_width=True):
-            st.session_state.menu = "🤖 Conseiller IA"
-            st.session_state.ai_query = f"Parle-moi du produit {row['Produit']} de {row['Laboratoire']}. Comment l'utiliser et quels sont ses bienfaits ?"
-            st.rerun()
-            
         p_text = f"{row['PPA']} DA" if row['PPA'] > 0 else "Prix sur demande"
         st.metric("Prix Unitaire", p_text)
         msg = urllib.parse.quote(f"Pharmaciel - {row['Produit']} | Prix: {row['PPA']} DA")
@@ -463,35 +404,11 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
         
         if filt.empty: st.warning("Aucun produit ne correspond à ces critères.")
         
-        # --- LOGIQUE DE PAGINATION ---
-        ITEMS_PER_PAGE = 20
-        total_items = len(filt)
-        total_pages = max(1, (total_items + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE)
-        
-        if 'cat_page' not in st.session_state: st.session_state.cat_page = 1
-        if st.session_state.cat_page > total_pages: st.session_state.cat_page = total_pages
-
-        # Barre de navigation Haut
-        col_n1, col_n2, col_n3 = st.columns([1, 2, 1])
-        if col_n1.button("⬅️ Précédent", disabled=st.session_state.cat_page == 1):
-            st.session_state.cat_page -= 1
-            st.rerun()
-        col_n2.write(f"<center>Page **{st.session_state.cat_page}** / {total_pages}</center>", unsafe_allow_html=True)
-        if col_n3.button("Suivant ➡️", disabled=st.session_state.cat_page == total_pages):
-            st.session_state.cat_page += 1
-            st.rerun()
-
-        # Slice des données
-        start_idx = (st.session_state.cat_page - 1) * ITEMS_PER_PAGE
-        end_idx = start_idx + ITEMS_PER_PAGE
-        df_page = filt.iloc[start_idx:end_idx]
-
-        # Grille de produits
-        for i in range(0, len(df_page), 4):
+        for i in range(0, len(filt), 4):
             cols = st.columns(4)
             for j in range(4):
-                if i+j < len(df_page):
-                    row = df_page.iloc[i+j]
+                if i+j < len(filt):
+                    row = filt.iloc[i+j]
                     with cols[j]:
                         with st.container(border=True):
                             img = get_image_base64(row['image_path'])
@@ -503,33 +420,19 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
                                 badge_cols[0].caption("🔴 Stock Faible")
                             if row['Promo']: badge_cols[1].markdown("🔥 **PROMO**")
                             
-                            st.markdown(f"<div class='vignette-title'><b>{row['Produit']}</b></div>", unsafe_allow_html=True)
+                            st.markdown(f"**{row['Produit']}**")
                             p_disp = f"{row['PPA']} DA" if row['PPA'] > 0 else "Prix sur demande"
-                            st.markdown(f"<div class='vignette-price'>{p_disp}</div>", unsafe_allow_html=True)
+                            st.markdown(f"### {p_disp}")
                             
-                            st.write("") # Petit espace additionnel
-                            
-                            c_b1, c_b2 = st.columns([1, 1])
-                            real_key_idx = start_idx + i + j
-                            if c_b1.button("Détails", key=f"v_{real_key_idx}", use_container_width=True): show_details(row)
-                            if c_b2.button("🛒", key=f"add_{real_key_idx}", use_container_width=True):
+                            c_b1, c_b2 = st.columns(2)
+                            if c_b1.button("Détails", key=f"v_{i+j}", use_container_width=True): show_details(row)
+                            if c_b2.button("🛒", key=f"add_{i+j}", use_container_width=True):
                                 if row['Produit'] in st.session_state.cart:
                                     st.session_state.cart[row['Produit']]['qty'] += 1
                                 else:
                                     st.session_state.cart[row['Produit']] = {'price': row['PPA'], 'qty': 1}
                                 st.toast(f"Ajouté : {row['Produit']}")
                                 st.rerun()
-
-        # Barre de navigation Bas
-        st.divider()
-        bn_1, bn_2, bn_3 = st.columns([1, 2, 1])
-        if bn_1.button("⬅️ Page Précédente", key="prev_low", disabled=st.session_state.cat_page == 1):
-            st.session_state.cat_page -= 1
-            st.rerun()
-        bn_2.write(f"<center>Page **{st.session_state.cat_page}** / {total_pages}</center>", unsafe_allow_html=True)
-        if bn_3.button("Page Suivante ➡️", key="next_low", disabled=st.session_state.cat_page == total_pages):
-            st.session_state.cat_page += 1
-            st.rerun()
 
     with tabs[1]: # Images & Web
         st.subheader("🖼️ Gestion des visuels")
@@ -741,119 +644,9 @@ elif menu in ["🛒 Mon Panier", "🛒 Commandes Client"]:
             st.success("Proforma enregistrée !")
             st.link_button("Ouvrir WhatsApp", f"https://wa.me/?text={urllib.parse.quote(msg_cart)}")
 
-# --- ONGLET 4 : CONSEILLER IA ---
-elif menu == "🤖 Conseiller IA":
-    st.title("🤖 Votre Conseiller IA Pharmaciel")
-    
-    # Vérification de la clé API
-    api_key = st.session_state.get('gemini_api_key', "")
-    if not api_key:
-        st.warning("⚠️ L'IA n'est pas encore configurée. (Le responsable doit ajouter la clé API dans l'onglet Admin)")
-        if st.session_state.user_role != "Responsable": st.stop()
-        api_key = st.text_input("Collez votre clé API Gemini ici pour tester :", type="password")
-        if st.button("Activer l'IA"):
-            st.session_state.gemini_api_key = api_key
-            st.rerun()
-        st.stop()
-
-    # Configuration forcée pour éviter les erreurs v1beta sur Streamlit Cloud
-    genai.configure(api_key=api_key)
-    
-    # On définit les modèles à essayer avec le préfixe complet
-    models_to_try = ['models/gemini-1.5-flash', 'models/gemini-pro', 'models/gemini-1.0-pro']
-
-    # Préparation du contexte (Base de données)
-    context = "Tu es l'assistant expert de Pharmaciel. Voici notre catalogue actuel :\n"
-    for _, r in df_para.iterrows():
-        context += f"- {r['Produit']} ({r['Laboratoire']}) : {r['Description']}. Famille: {r['Famille']}\n"
-    context += "\nRéponds aux clients de manière professionnelle, courte et amicale. Ne suggère que les produits présents dans la liste ci-dessus."
-
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-
-    # Gestion d'une requête venant d'un bouton "Demander à l'IA"
-    prompt = st.chat_input("Posez votre question sur nos produits...")
-    if 'ai_query' in st.session_state and st.session_state.ai_query:
-        prompt = st.session_state.ai_query
-        st.session_state.ai_query = None # Consommé
-
-    if prompt:
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-
-        with st.chat_message("assistant"):
-            try:
-                full_prompt = f"{context}\n\nUtilisateur: {prompt}"
-                # Tentative intelligente avec repli
-                last_err = ""
-                success = False
-                for m_name in ['models/gemini-1.5-flash', 'models/gemini-pro', 'models/gemini-1.0-pro']:
-                    try:
-                        model = genai.GenerativeModel(m_name)
-                        response = model.generate_content(full_prompt)
-                        st.markdown(response.text)
-                        st.session_state.messages.append({"role": "assistant", "content": response.text})
-                        success = True
-                        break
-                    except Exception as e:
-                        last_err = str(e)
-                        continue
-                
-                if not success:
-                    st.error(f"❌ Aucun modèle n'a répondu. Dernière erreur : {last_err}")
-            except Exception as e:
-                st.error(f"❌ Erreur système : {str(e)}")
-
-# --- ONGLET 5 : ADMIN ---
+# --- ONGLET 3 : ADMIN ---
 elif menu == "⚙️ Admin":
     st.title("⚙️ Administration (Accès Maître)")
-    
-    with st.expander("🤖 Configuration Intelligence Artificielle"):
-        key = st.text_input("Clé API Google Gemini", value=st.session_state.get('gemini_api_key', ""), type="password")
-        c_ia1, c_ia2 = st.columns(2)
-        if c_ia1.button("Enregistrer la clé IA"):
-            st.session_state.gemini_api_key = key
-            st.success("Clé enregistrée !")
-        if c_ia2.button("🧪 Tester la connexion IA"):
-            if not key: st.error("Veuillez saisir une clé.")
-            else:
-                try:
-                    genai.configure(api_key=key)
-                    # Test du premier modèle dispo
-                    success = False
-                    errors = []
-                    for m_name in ['models/gemini-1.5-flash', 'models/gemini-pro', 'models/gemini-1.0-pro']:
-                        try:
-                            t_model = genai.GenerativeModel(m_name)
-                            t_model.generate_content("test")
-                            st.success(f"✅ Succès avec le modèle : {m_name}")
-                            success = True
-                            break
-                        except Exception as e: 
-                            errors.append(f"{m_name}: {str(e)}")
-                    if not success: 
-                        st.error("❌ Aucun modèle accessible.")
-                        with st.expander("Détails des erreurs pour diagnostic"):
-                            for err in errors: st.write(err)
-                except Exception as e:
-                    st.error(f"❌ Échec global : {str(e)}")
-        
-        if st.button("🔍 Lister TOUS les modèles autorisés par cette clé"):
-            if not key: st.error("Veuillez saisir une clé.")
-            else:
-                try:
-                    genai.configure(api_key=key)
-                    models = genai.list_models()
-                    st.write("### Modèles détectés :")
-                    for m in models:
-                        st.code(f"Nom: {m.name} | Version: {m.supported_generation_methods}")
-                except Exception as e:
-                    st.error(f"Impossible de lister les modèles : {str(e)}")
     u_db = load_users()
     st.subheader("👥 Gestion de l'équipe")
     for index, row in u_db.iterrows():
