@@ -701,10 +701,14 @@ elif menu == "🤖 Conseiller IA":
             st.markdown(prompt)
 
         with st.chat_message("assistant"):
-            full_prompt = f"{context}\n\nUtilisateur: {prompt}"
-            response = model.generate_content(full_prompt)
-            st.markdown(response.text)
-            st.session_state.messages.append({"role": "assistant", "content": response.text})
+            try:
+                full_prompt = f"{context}\n\nUtilisateur: {prompt}"
+                response = model.generate_content(full_prompt)
+                st.markdown(response.text)
+                st.session_state.messages.append({"role": "assistant", "content": response.text})
+            except Exception as e:
+                st.error(f"❌ Erreur de l'IA : {str(e)}")
+                st.info("Conseil : Vérifiez que votre clé API est correcte et que le service Gemini est activé pour votre compte.")
 
 # --- ONGLET 5 : ADMIN ---
 elif menu == "⚙️ Admin":
