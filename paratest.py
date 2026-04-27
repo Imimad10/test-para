@@ -66,6 +66,27 @@ st.markdown("""
         border-color: #007bff !important;
     }
     
+    /* Uniformisation des vignettes */
+    .stImage > img {
+        height: 160px !important;
+        object-fit: contain !important;
+        background: #fdfdfd;
+        border-radius: 8px;
+        margin-bottom: 10px;
+    }
+    .vignette-title {
+        height: 45px;
+        overflow: hidden;
+        margin-bottom: 5px;
+        line-height: 1.2;
+    }
+    [data-testid="stVerticalBlockBorderWrapper"] {
+        min-height: 380px !important;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    
     /* Sidebar styling */
     [data-testid="stSidebar"] {
         background-color: #ffffff !important;
@@ -458,9 +479,11 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
                                 badge_cols[0].caption("🔴 Stock Faible")
                             if row['Promo']: badge_cols[1].markdown("🔥 **PROMO**")
                             
-                            st.markdown(f"**{row['Produit']}**")
+                            st.markdown(f"<div class='vignette-title'><b>{row['Produit']}</b></div>", unsafe_allow_html=True)
                             p_disp = f"{row['PPA']} DA" if row['PPA'] > 0 else "Prix sur demande"
-                            st.markdown(f"### {p_disp}")
+                            st.write(f"<span style='color:#007bff; font-weight:bold; font-size:1.1em;'>{p_disp}</span>", unsafe_allow_html=True)
+                            
+                            st.write("") # Spacer
                             
                             c_b1, c_b2 = st.columns(2)
                             real_key_idx = start_idx + i + j
