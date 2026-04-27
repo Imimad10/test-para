@@ -11,6 +11,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 import io
+import google.generativeai as genai
 
 # --- 1. CONFIGURATION & CHEMINS ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -280,12 +281,18 @@ with st.sidebar.expander("🎯 Filtres & Recherche", expanded=True):
     f_alerte = st.selectbox("Alertes Stock/DDP", ["Aucune", "Stock Bas (<5)", "Péremption Proche"])
 
 if st.session_state.user_role == "Client":
-    nav_options = ["📦 Catalogue", "🛒 Mon Panier"]
+    nav_options = ["📦 Catalogue", "🛒 Mon Panier", "🤖 Conseiller IA"]
 else:
-    nav_options = ["📦 Stock & Catalogue", "🛒 Commandes Client", "📊 Statistiques"]
+    nav_options = ["📦 Stock & Catalogue", "🛒 Commandes Client", "📊 Statistiques", "🤖 Conseiller IA"]
     if st.session_state.user_role == "Responsable": nav_options.append("⚙️ Admin")
 
-menu = st.sidebar.radio("Navigation", nav_options)
+# Gestion de la redirection IA
+if 'ai_query' in st.session_state and st.session_state.ai_query:
+    default_menu_idx = nav_options.index("🤖 Conseiller IA")
+else:
+    default_menu_idx = 0
+
+menu = st.sidebar.radio("Navigation", nav_options, index=default_menu_idx)
 
 # --- PANIER (SIDEBAR) ---
 if st.session_state.cart:
@@ -345,6 +352,13 @@ def show_details(row):
         if row['Description']:
             st.info(f"📝 **Description** : {row['Description']}")
             st.divider()
+        
+        # Bouton IA spécifique
+        if st.button("🤖 Demander conseil à l'IA sur ce produit", use_container_width=True):
+            st.session_state.menu = "🤖 Conseiller IA"
+            st.session_state.ai_query = f"Parle-moi du produit {row['Produit']} de {row['Laboratoire']}. Comment l'utiliser et quels sont ses bienfaits ?"
+            st.rerun()
+            
         p_text = f"{row['PPA']} DA" if row['PPA'] > 0 else "Prix sur demande"
         st.metric("Prix Unitaire", p_text)
         msg = urllib.parse.quote(f"Pharmaciel - {row['Produit']} | Prix: {row['PPA']} DA")
@@ -644,9 +658,63 @@ elif menu in ["🛒 Mon Panier", "🛒 Commandes Client"]:
             st.success("Proforma enregistrée !")
             st.link_button("Ouvrir WhatsApp", f"https://wa.me/?text={urllib.parse.quote(msg_cart)}")
 
-# --- ONGLET 3 : ADMIN ---
+# --- ONGLET 4 : CONSEILLER IA ---
+elif menu == "🤖 Conseiller IA":
+    st.title("🤖 Votre Conseiller IA Pharmaciel")
+    
+    # Vérification de la clé API
+    api_key = st.session_state.get('gemini_api_key', "")
+    if not api_key:
+        st.warning("⚠️ L'IA n'est pas encore configurée. (Le responsable doit ajouter la clé API dans l'onglet Admin)")
+        if st.session_state.user_role != "Responsable": st.stop()
+        api_key = st.text_input("Collez votre clé API Gemini ici pour tester :", type="password")
+        if st.button("Activer l'IA"):
+            st.session_state.gemini_api_key = api_key
+            st.rerun()
+        st.stop()
+
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel('gemini-1.5-flash')
+
+    # Préparation du contexte (Base de données)
+    context = "Tu es l'assistant expert de Pharmaciel. Voici notre catalogue actuel :\n"
+    for _, r in df_para.iterrows():
+        context += f"- {r['Produit']} ({r['Laboratoire']}) : {r['Description']}. Famille: {r['Famille']}\n"
+    context += "\nRéponds aux clients de manière professionnelle, courte et amicale. Ne suggère que les produits présents dans la liste ci-dessus."
+
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    # Gestion d'une requête venant d'un bouton "Demander à l'IA"
+    prompt = st.chat_input("Posez votre question sur nos produits...")
+    if 'ai_query' in st.session_state and st.session_state.ai_query:
+        prompt = st.session_state.ai_query
+        st.session_state.ai_query = None # Consommé
+
+    if prompt:
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        with st.chat_message("assistant"):
+            full_prompt = f"{context}\n\nUtilisateur: {prompt}"
+            response = model.generate_content(full_prompt)
+            st.markdown(response.text)
+            st.session_state.messages.append({"role": "assistant", "content": response.text})
+
+# --- ONGLET 5 : ADMIN ---
 elif menu == "⚙️ Admin":
     st.title("⚙️ Administration (Accès Maître)")
+    
+    with st.expander("🤖 Configuration Intelligence Artificielle"):
+        key = st.text_input("Clé API Google Gemini", value=st.session_state.get('gemini_api_key', ""), type="password")
+        if st.button("Enregistrer la clé IA"):
+            st.session_state.gemini_api_key = key
+            st.success("Clé enregistrée pour cette session !")
     u_db = load_users()
     st.subheader("👥 Gestion de l'équipe")
     for index, row in u_db.iterrows():
