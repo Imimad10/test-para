@@ -418,11 +418,35 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
         
         if filt.empty: st.warning("Aucun produit ne correspond à ces critères.")
         
-        for i in range(0, len(filt), 4):
+        # --- LOGIQUE DE PAGINATION ---
+        ITEMS_PER_PAGE = 20
+        total_items = len(filt)
+        total_pages = max(1, (total_items + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE)
+        
+        if 'cat_page' not in st.session_state: st.session_state.cat_page = 1
+        if st.session_state.cat_page > total_pages: st.session_state.cat_page = total_pages
+
+        # Barre de navigation Haut
+        col_n1, col_n2, col_n3 = st.columns([1, 2, 1])
+        if col_n1.button("⬅️ Précédent", disabled=st.session_state.cat_page == 1):
+            st.session_state.cat_page -= 1
+            st.rerun()
+        col_n2.write(f"<center>Page **{st.session_state.cat_page}** / {total_pages}</center>", unsafe_allow_html=True)
+        if col_n3.button("Suivant ➡️", disabled=st.session_state.cat_page == total_pages):
+            st.session_state.cat_page += 1
+            st.rerun()
+
+        # Slice des données
+        start_idx = (st.session_state.cat_page - 1) * ITEMS_PER_PAGE
+        end_idx = start_idx + ITEMS_PER_PAGE
+        df_page = filt.iloc[start_idx:end_idx]
+
+        # Grille de produits
+        for i in range(0, len(df_page), 4):
             cols = st.columns(4)
             for j in range(4):
-                if i+j < len(filt):
-                    row = filt.iloc[i+j]
+                if i+j < len(df_page):
+                    row = df_page.iloc[i+j]
                     with cols[j]:
                         with st.container(border=True):
                             img = get_image_base64(row['image_path'])
@@ -439,14 +463,26 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
                             st.markdown(f"### {p_disp}")
                             
                             c_b1, c_b2 = st.columns(2)
-                            if c_b1.button("Détails", key=f"v_{i+j}", use_container_width=True): show_details(row)
-                            if c_b2.button("🛒", key=f"add_{i+j}", use_container_width=True):
+                            real_key_idx = start_idx + i + j
+                            if c_b1.button("Détails", key=f"v_{real_key_idx}", use_container_width=True): show_details(row)
+                            if c_b2.button("🛒", key=f"add_{real_key_idx}", use_container_width=True):
                                 if row['Produit'] in st.session_state.cart:
                                     st.session_state.cart[row['Produit']]['qty'] += 1
                                 else:
                                     st.session_state.cart[row['Produit']] = {'price': row['PPA'], 'qty': 1}
                                 st.toast(f"Ajouté : {row['Produit']}")
                                 st.rerun()
+
+        # Barre de navigation Bas
+        st.divider()
+        bn_1, bn_2, bn_3 = st.columns([1, 2, 1])
+        if bn_1.button("⬅️ Page Précédente", key="prev_low", disabled=st.session_state.cat_page == 1):
+            st.session_state.cat_page -= 1
+            st.rerun()
+        bn_2.write(f"<center>Page **{st.session_state.cat_page}** / {total_pages}</center>", unsafe_allow_html=True)
+        if bn_3.button("Page Suivante ➡️", key="next_low", disabled=st.session_state.cat_page == total_pages):
+            st.session_state.cat_page += 1
+            st.rerun()
 
     with tabs[1]: # Images & Web
         st.subheader("🖼️ Gestion des visuels")
