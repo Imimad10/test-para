@@ -59,25 +59,31 @@ def get_image_base64(filename):
 def login():
     if 'auth' not in st.session_state: st.session_state.auth = False
     if not st.session_state.auth:
-        st.title("🔐 Accès Pharmaciel Pro")
-        with st.form("login_form"):
-            u = st.text_input("Identifiant")
-            p = st.text_input("Mot de passe", type="password")
-            if st.form_submit_button("Se connecter"):
-                if u == "admin" and p == "1992":
-                    st.session_state.auth, st.session_state.user_role, st.session_state.current_user = True, "Responsable", "Admin Suprême"
-                    st.rerun()
-                users = load_users()
-                match = users[(users['user'] == u) & (users['pw'].astype(str) == p)]
-                if not match.empty:
-                    st.session_state.auth, st.session_state.user_role, st.session_state.current_user = True, match['role'].values[0], u
-                    st.rerun()
-                else: st.error("Identifiants incorrects.")
+        st.title("🔐 Pharmaciel Pro")
         
-        st.divider()
-        if st.button("🌐 Accès Catalogue Public (Sans connexion)", use_container_width=True):
+        # SECTION CLIENT (Très visible)
+        st.success("👋 Vous êtes client ? Accédez directement à notre catalogue sans identifiant.")
+        if st.button("🌐 VOIR LE CATALOGUE PRODUITS", type="primary", use_container_width=True):
             st.session_state.auth, st.session_state.user_role, st.session_state.current_user = True, "Client", "Visiteur"
             st.rerun()
+        
+        st.divider()
+        
+        # SECTION CONNEXION (Staff)
+        with st.expander("🔑 Espace Collaborateur (Connexion)", expanded=False):
+            with st.form("login_form"):
+                u = st.text_input("Identifiant")
+                p = st.text_input("Mot de passe", type="password")
+                if st.form_submit_button("Se connecter"):
+                    if u == "admin" and p == "1992":
+                        st.session_state.auth, st.session_state.user_role, st.session_state.current_user = True, "Responsable", "Admin Suprême"
+                        st.rerun()
+                    users = load_users()
+                    match = users[(users['user'] == u) & (users['pw'].astype(str) == p)]
+                    if not match.empty:
+                        st.session_state.auth, st.session_state.user_role, st.session_state.current_user = True, match['role'].values[0], u
+                        st.rerun()
+                    else: st.error("Identifiants incorrects.")
         st.stop()
 
 # --- 4. INTERFACE ---
