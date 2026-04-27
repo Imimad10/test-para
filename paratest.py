@@ -676,7 +676,7 @@ elif menu == "🤖 Conseiller IA":
     genai.configure(api_key=api_key)
     
     # On définit les modèles à essayer par ordre de préférence
-    models_to_try = ['gemini-1.5-flash', 'gemini-pro']
+    models_to_try = ['gemini-1.5-flash', 'gemini-pro', 'gemini-1.0-pro']
 
     # Préparation du contexte (Base de données)
     context = "Tu es l'assistant expert de Pharmaciel. Voici notre catalogue actuel :\n"
@@ -706,17 +706,24 @@ elif menu == "🤖 Conseiller IA":
             try:
                 full_prompt = f"{context}\n\nUtilisateur: {prompt}"
                 # Tentative intelligente avec repli
-                try:
-                    model = genai.GenerativeModel('gemini-1.5-flash')
-                    response = model.generate_content(full_prompt)
-                except Exception:
-                    model = genai.GenerativeModel('gemini-pro')
-                    response = model.generate_content(full_prompt)
-                    
-                st.markdown(response.text)
-                st.session_state.messages.append({"role": "assistant", "content": response.text})
+                last_err = ""
+                success = False
+                for m_name in ['gemini-1.5-flash', 'gemini-pro', 'gemini-1.0-pro']:
+                    try:
+                        model = genai.GenerativeModel(m_name)
+                        response = model.generate_content(full_prompt)
+                        st.markdown(response.text)
+                        st.session_state.messages.append({"role": "assistant", "content": response.text})
+                        success = True
+                        break
+                    except Exception as e:
+                        last_err = str(e)
+                        continue
+                
+                if not success:
+                    st.error(f"❌ Aucun modèle n'a répondu. Dernière erreur : {last_err}")
             except Exception as e:
-                st.error(f"❌ L'IA ne répond pas (Essai de tous les modèles). Erreur : {str(e)}")
+                st.error(f"❌ Erreur système : {str(e)}")
 
 # --- ONGLET 5 : ADMIN ---
 elif menu == "⚙️ Admin":
@@ -735,15 +742,20 @@ elif menu == "⚙️ Admin":
                     genai.configure(api_key=key)
                     # Test du premier modèle dispo
                     success = False
-                    for m_name in ['gemini-1.5-flash', 'gemini-pro']:
+                    errors = []
+                    for m_name in ['gemini-1.5-flash', 'gemini-pro', 'gemini-1.0-pro']:
                         try:
                             t_model = genai.GenerativeModel(m_name)
                             t_model.generate_content("test")
                             st.success(f"✅ Succès avec le modèle : {m_name}")
                             success = True
                             break
-                        except: continue
-                    if not success: st.error("❌ Aucun modèle accessible avec cette clé.")
+                        except Exception as e: 
+                            errors.append(f"{m_name}: {str(e)}")
+                    if not success: 
+                        st.error("❌ Aucun modèle accessible.")
+                        with st.expander("Détails des erreurs pour diagnostic"):
+                            for err in errors: st.write(err)
                 except Exception as e:
                     st.error(f"❌ Échec global : {str(e)}")
     u_db = load_users()
