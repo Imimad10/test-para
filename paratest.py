@@ -75,7 +75,7 @@ st.markdown("""
 # --- 3. FONCTIONS TECHNIQUES ---
 
 def load_data():
-    cols = ['Produit', 'Laboratoire', 'Quantité', 'PPA', 'image_path', 'Famille', 'DDP']
+    cols = ['Produit', 'Laboratoire', 'Quantité', 'PPA', 'image_path', 'Famille', 'DDP', 'Promo']
     if not os.path.exists(DB_PATH): return pd.DataFrame(columns=cols)
     try:
         df = pd.read_csv(DB_PATH, encoding='utf-8-sig')
@@ -86,11 +86,13 @@ def load_data():
         df = df.loc[:, ~df.columns.duplicated()]
         
         for c in cols:
-            if c not in df.columns: df[c] = ""
+            if c not in df.columns: 
+                df[c] = False if c == 'Promo' else ""
             
         # Nettoyage numérique
         df['PPA'] = pd.to_numeric(df['PPA'], errors='coerce').fillna(0)
         df['Quantité'] = pd.to_numeric(df['Quantité'], errors='coerce').fillna(0)
+        df['Promo'] = df['Promo'].astype(bool)
         return df.fillna("")
     except: return pd.DataFrame(columns=cols)
 
@@ -327,7 +329,9 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
                             if img: st.image(img, use_container_width=True)
                             
                             # Badges
-                            if row['Quantité'] < 5: st.caption("🔴 Stock Faible")
+                            badge_cols = st.columns(2)
+                            if row['Quantité'] < 5: badge_cols[0].caption("🔴 Stock Faible")
+                            if row['Promo']: badge_cols[1].markdown("🔥 **PROMO**")
                             
                             st.markdown(f"**{row['Produit']}**")
                             p_disp = f"{row['PPA']} DA" if row['PPA'] > 0 else "Prix sur demande"
@@ -402,19 +406,56 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
     if "➕ Ajout" in t_tabs_names:
         with tabs[3]: # Ajout Manuel
             with st.form("add_p"):
-                n, l, p, d = st.text_input("Désignation"), st.text_input("Labo"), st.number_input("Prix", 0.0), st.text_input("DDP")
-                if st.form_submit_button("Enregistrer"):
-                    new_row = pd.DataFrame([{"Produit": n.upper(), "Laboratoire": l.upper(), "PPA": p, "DDP": d, "image_path": ""}])
+                c_a1, c_a2 = st.columns(2)
+                n = c_a1.text_input("Désignation")
+                l = c_a2.text_input("Labo")
+                p = c_a1.number_input("Prix (PPA)", 0.0)
+                q = c_a2.number_input("Quantité", 0)
+                d = c_a1.text_input("DDP (MM/YY)")
+                f = c_a2.text_input("Famille")
+                promo = st.checkbox("Mettre en promotion")
+                if st.form_submit_button("Enregistrer le produit"):
+                    new_row = pd.DataFrame([{"Produit": n.upper(), "Laboratoire": l.upper(), "PPA": p, "Quantité": q, "DDP": d, "Famille": f, "image_path": "", "Promo": promo}])
                     save_data(pd.concat([df_para, new_row], ignore_index=True))
+                    st.success(f"Produit {n} ajouté !")
                     st.rerun()
 
-        with tabs[4]: # Modif/Suppr
-            st.subheader("✏️ Édition du catalogue")
-            target = st.selectbox("Produit à modifier/supprimer", df_para['Produit'].unique())
-            if st.button("❌ Supprimer définitivement ce produit", type="primary"):
-                df_para = df_para[df_para['Produit'] != target]
-                save_data(df_para)
-                st.rerun()
+        with tabs[4]: # Gestion du Stock (Modif/Suppr)
+            st.subheader("⚙️ Gestion & Modification")
+            target = st.selectbox("Sélectionner un produit à modifier", sorted(df_para['Produit'].unique()))
+            
+            if target:
+                p_idx = df_para[df_para['Produit'] == target].index[0]
+                p_data = df_para.loc[p_idx]
+                
+                with st.form(f"edit_{target}"):
+                    c1, c2 = st.columns(2)
+                    new_n = c1.text_input("Désignation", value=p_data['Produit'])
+                    new_l = c2.text_input("Laboratoire", value=p_data['Laboratoire'])
+                    new_p = c1.number_input("Prix (PPA)", value=float(p_data['PPA']))
+                    new_q = c2.number_input("Quantité en stock", value=int(p_data['Quantité']))
+                    new_d = c1.text_input("DDP", value=p_data['DDP'])
+                    new_f = c2.text_input("Famille", value=p_data['Famille'])
+                    new_promo = st.checkbox("Produit en PROMO", value=bool(p_data['Promo']))
+                    
+                    col_btn1, col_btn2 = st.columns(2)
+                    if col_btn1.form_submit_button("💾 Enregistrer les modifications", use_container_width=True):
+                        df_para.at[p_idx, 'Produit'] = new_n.upper()
+                        df_para.at[p_idx, 'Laboratoire'] = new_l.upper()
+                        df_para.at[p_idx, 'PPA'] = new_p
+                        df_para.at[p_idx, 'Quantité'] = new_q
+                        df_para.at[p_idx, 'DDP'] = new_d
+                        df_para.at[p_idx, 'Famille'] = new_f
+                        df_para.at[p_idx, 'Promo'] = new_promo
+                        save_data(df_para)
+                        st.success("Modifications enregistrées !")
+                        st.rerun()
+                    
+                    if col_btn2.form_submit_button("❌ Supprimer le produit", use_container_width=True):
+                        df_para = df_para.drop(p_idx)
+                        save_data(df_para)
+                        st.warning("Produit supprimé.")
+                        st.rerun()
 
 # --- ONGLET 2 : STATISTIQUES ---
 elif menu == "📊 Statistiques":
