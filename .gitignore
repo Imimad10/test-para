@@ -1,0 +1,22 @@
+# Environnement virtuel (NE JAMAIS PUSHER ÇA)
+venv/
+env/
+.venv/
+
+# Fichiers Python temporaires
+__pycache__/
+*.pyc
+
+# Données et secrets (C'est ici que vous protégez vos infos)
+.env
+*.db
+*.sqlite3
+data/
+
+# Fichiers de configuration système
+.DS_Store
+.vscode/
+.idea/
+
+# Streamlit (Cache)
+.streamlit/
