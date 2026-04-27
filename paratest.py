@@ -674,7 +674,12 @@ elif menu == "🤖 Conseiller IA":
         st.stop()
 
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    
+    # Tentative avec le modèle le plus récent, sinon repli sur gemini-pro
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+    except:
+        model = genai.GenerativeModel('gemini-pro')
 
     # Préparation du contexte (Base de données)
     context = "Tu es l'assistant expert de Pharmaciel. Voici notre catalogue actuel :\n"
@@ -707,8 +712,8 @@ elif menu == "🤖 Conseiller IA":
                 st.markdown(response.text)
                 st.session_state.messages.append({"role": "assistant", "content": response.text})
             except Exception as e:
-                st.error(f"❌ Erreur de l'IA : {str(e)}")
-                st.info("Conseil : Vérifiez que votre clé API est correcte et que le service Gemini est activé pour votre compte.")
+                st.error(f"❌ L'IA ne répond pas. Erreur : {str(e)}")
+                st.info("Ceci peut être dû à une clé API invalide ou à une restriction régionale de Google.")
 
 # --- ONGLET 5 : ADMIN ---
 elif menu == "⚙️ Admin":
@@ -716,9 +721,20 @@ elif menu == "⚙️ Admin":
     
     with st.expander("🤖 Configuration Intelligence Artificielle"):
         key = st.text_input("Clé API Google Gemini", value=st.session_state.get('gemini_api_key', ""), type="password")
-        if st.button("Enregistrer la clé IA"):
+        c_ia1, c_ia2 = st.columns(2)
+        if c_ia1.button("Enregistrer la clé IA"):
             st.session_state.gemini_api_key = key
-            st.success("Clé enregistrée pour cette session !")
+            st.success("Clé enregistrée !")
+        if c_ia2.button("🧪 Tester la connexion IA"):
+            if not key: st.error("Veuillez saisir une clé.")
+            else:
+                try:
+                    genai.configure(api_key=key)
+                    t_model = genai.GenerativeModel('gemini-1.5-flash')
+                    t_model.generate_content("test")
+                    st.success("✅ Connexion réussie ! L'IA fonctionne.")
+                except Exception as e:
+                    st.error(f"❌ Échec : {str(e)}")
     u_db = load_users()
     st.subheader("👥 Gestion de l'équipe")
     for index, row in u_db.iterrows():
