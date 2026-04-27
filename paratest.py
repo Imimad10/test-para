@@ -75,8 +75,8 @@ st.markdown("""
         padding: 10px !important;
     }
     
-    /* Conteneur d'image forcé */
-    .stImage {
+    /* Conteneur d'image forcé UNIQUEMENT pour le catalogue */
+    [data-testid="stVerticalBlockBorderWrapper"] .stImage {
         height: 180px !important;
         display: flex !important;
         align-items: center !important;
@@ -86,7 +86,7 @@ st.markdown("""
         overflow: hidden !important;
         margin-bottom: 10px !important;
     }
-    .stImage img {
+    [data-testid="stVerticalBlockBorderWrapper"] .stImage img {
         max-height: 180px !important;
         width: auto !important;
         object-fit: contain !important;
@@ -372,10 +372,12 @@ if st.sidebar.button("🚪 Déconnexion", type="secondary", use_container_width=
 # --- DIALOGUE DÉTAILS ---
 @st.dialog("Fiche Produit", width="large")
 def show_details(row):
-    c1, c2 = st.columns(2)
+    c1, c2 = st.columns([1, 1])
     img = get_image_base64(row['image_path'])
     with c1:
-        if img: st.image(img, use_container_width=True)
+        if img: 
+            # Affichage taille réelle sans contrainte
+            st.image(img, use_container_width=True)
         else: st.warning("Image manquante")
     with c2:
         st.header(row['Produit'])
