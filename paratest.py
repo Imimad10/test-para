@@ -795,6 +795,18 @@ elif menu == "⚙️ Admin":
                             for err in errors: st.write(err)
                 except Exception as e:
                     st.error(f"❌ Échec global : {str(e)}")
+        
+        if st.button("🔍 Lister TOUS les modèles autorisés par cette clé"):
+            if not key: st.error("Veuillez saisir une clé.")
+            else:
+                try:
+                    genai.configure(api_key=key)
+                    models = genai.list_models()
+                    st.write("### Modèles détectés :")
+                    for m in models:
+                        st.code(f"Nom: {m.name} | Version: {m.supported_generation_methods}")
+                except Exception as e:
+                    st.error(f"Impossible de lister les modèles : {str(e)}")
     u_db = load_users()
     st.subheader("👥 Gestion de l'équipe")
     for index, row in u_db.iterrows():
