@@ -167,6 +167,7 @@ def save_sale(cart_dict, total_val, user):
     else:
         df_sales.to_csv(SALES_DB, index=False, encoding='utf-8-sig')
 
+@st.cache_data
 def load_users():
     if not os.path.exists(USER_DB):
         df_init = pd.DataFrame([{"user": "admin", "pw": "1992", "role": "Responsable"}])
@@ -189,6 +190,7 @@ def clean_filename(text):
     if pd.isna(text): return ""
     return re.sub(r'\W+', '_', str(text).strip()).upper()
 
+@st.cache_data
 def get_image_base64(filename):
     if not filename or str(filename).lower() in ['nan', '']: return None
     path = os.path.join(IMG_DIR, str(filename).strip())
