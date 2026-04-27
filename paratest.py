@@ -255,9 +255,12 @@ def show_details(row):
         st.header(row['Produit'])
         st.write(f"**🔬 Labo :** {row['Laboratoire']}")
         st.write(f"**📅 DDP :** {row['DDP']}")
-        st.write(f"**📦 Stock :** {row['Quantité']} unités")
-        val_tot = float(row['PPA']) * float(row['Quantité'])
-        st.write(f"**💰 Valeur Stock :** {val_tot:,.2f} DA")
+        
+        if st.session_state.user_role == "Responsable":
+            st.write(f"**📦 Stock :** {row['Quantité']} unités")
+            val_tot = float(row['PPA']) * float(row['Quantité'])
+            st.write(f"**💰 Valeur Stock :** {val_tot:,.2f} DA")
+            
         st.divider()
         p_text = f"{row['PPA']} DA" if row['PPA'] > 0 else "Prix sur demande"
         st.metric("Prix Unitaire", p_text)
@@ -330,7 +333,8 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
                             
                             # Badges
                             badge_cols = st.columns(2)
-                            if row['Quantité'] < 5: badge_cols[0].caption("🔴 Stock Faible")
+                            if st.session_state.user_role != "Client" and row['Quantité'] < 5: 
+                                badge_cols[0].caption("🔴 Stock Faible")
                             if row['Promo']: badge_cols[1].markdown("🔥 **PROMO**")
                             
                             st.markdown(f"**{row['Produit']}**")
@@ -468,7 +472,10 @@ elif menu == "📊 Statistiques":
     
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Total Produits", total_produits)
-    c2.metric("Valeur Stock", f"{valeur_stock:,.0f} DA")
+    if st.session_state.user_role == "Responsable":
+        c2.metric("Valeur Stock", f"{valeur_stock:,.0f} DA")
+    else:
+        c2.metric("Valeur Stock", "---")
     c3.metric("Taux Images", f"{int((img_ok/total_produits)*100)}%" if total_produits > 0 else "0%")
     c4.metric("Alertes Stock", stock_bas, delta=-stock_bas, delta_color="inverse")
     
