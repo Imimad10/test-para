@@ -276,6 +276,7 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
                     img_n = get_image_base64(n_row['image_path'])
                     if img_n: st.image(img_n, use_container_width=True)
                     st.caption(f"**{n_row['Produit']}**")
+                    st.write(f"**{n_row['PPA']} DA**")
         
         c1, c2, c3 = st.columns([3, 1, 1])
         # Liste des suggestions (Produits uniques)
@@ -320,7 +321,7 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
                             if row['Quantité'] < 5: st.caption("🔴 Stock Faible")
                             
                             st.markdown(f"**{row['Produit']}**")
-                            st.markdown(f"💰 **{row['PPA']} DA**")
+                            st.markdown(f"### {row['PPA']} DA")
                             
                             c_b1, c_b2 = st.columns(2)
                             if c_b1.button("Détails", key=f"v_{i+j}", use_container_width=True): show_details(row)
