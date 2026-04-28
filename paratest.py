@@ -21,57 +21,150 @@ SALES_DB = os.path.join(BASE_DIR, 'ventes.csv')
 
 if not os.path.exists(IMG_DIR): os.makedirs(IMG_DIR)
 
-# --- 2. DESIGN SYSTEM (CSS) ---
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap');
-    
-    html, body, [class*="css"] {
-        font-family: 'Outfit', sans-serif;
+# --- 2. CONFIGURATION DE PAGE ---
+st.set_page_config(page_title="Pharmaciel Pro", layout="wide", page_icon="💊")
+
+# --- 3. DESIGN SYSTEM DYNAMIQUE (THEMES) ---
+def apply_custom_theme(theme_choice):
+    themes = {
+        "Clair Modern ❄️": {
+            "bg": "linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)",
+            "card_bg": "rgba(255, 255, 255, 0.8)",
+            "text": "#1e293b",
+            "sidebar_bg": "#ffffff",
+            "primary": "#007bff",
+            "accent": "#0056b3",
+            "sidebar_text": "#1e293b"
+        },
+        "Sombre Élite 🌙": {
+            "bg": "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+            "card_bg": "rgba(30, 41, 59, 0.7)",
+            "text": "#f8fafc",
+            "sidebar_bg": "#0f172a",
+            "primary": "#38bdf8",
+            "accent": "#0ea5e9",
+            "sidebar_text": "#f8fafc"
+        },
+        "Émeraude Royal 👑": {
+            "bg": "linear-gradient(135deg, #064e3b 0%, #022c22 100%)",
+            "card_bg": "rgba(6, 78, 59, 0.6)",
+            "text": "#ecfdf5",
+            "sidebar_bg": "#022c22",
+            "primary": "#fbbf24",
+            "accent": "#f59e0b",
+            "sidebar_text": "#ecfdf5"
+        },
+        "Aurore Boréale 🌌": {
+            "bg": "linear-gradient(135deg, #4c1d95 0%, #1e1b4b 100%)",
+            "card_bg": "rgba(30, 27, 75, 0.6)",
+            "text": "#f5f3ff",
+            "sidebar_bg": "#1e1b4b",
+            "primary": "#a78bfa",
+            "accent": "#8b5cf6",
+            "sidebar_text": "#f5f3ff"
+        }
     }
     
-    .stApp {
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    }
+    t = themes.get(theme_choice, themes["Clair Modern ❄️"])
     
-    /* Card Premium Style */
-    [data-testid="stVerticalBlock"] > div > div > div > div.stColumn {
-        transition: transform 0.3s ease;
-    }
-    
-    .stContainer {
-        border-radius: 15px !important;
-        border: none !important;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important;
-        background: rgba(255, 255, 255, 0.8) !important;
-        backdrop-filter: blur(10px);
-    }
-    
-    .stContainer:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important;
-    }
-    
-    /* Custom Buttons */
-    .stButton > button {
-        border-radius: 10px !important;
-        font-weight: 600 !important;
-        transition: all 0.2s !important;
-    }
-    
-    .stButton > button:hover {
-        background-color: #007bff !important;
-        color: white !important;
-        border-color: #007bff !important;
-    }
-    
-    /* Sidebar styling */
-    [data-testid="stSidebar"] {
-        background-color: #ffffff !important;
-        border-right: 1px solid #eee;
-    }
-</style>
-""", unsafe_allow_html=True)
+    st.markdown(f"""
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap');
+        
+        html, body, [class*="css"] {{
+            font-family: 'Outfit', sans-serif;
+        }}
+        
+        .stApp {{
+            background: {t['bg']};
+            background-attachment: fixed;
+            color: {t['text']} !important;
+        }}
+        
+        /* Glassmorphism for Containers */
+        [data-testid="stVerticalBlock"] > div > div > div > div.stColumn, .stContainer, div[data-testid="stExpander"] {{
+            border-radius: 15px !important;
+            border: 1px solid rgba(255,255,255,0.1) !important;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1) !important;
+            background: {t['card_bg']} !important;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            transition: transform 0.3s ease;
+        }}
+        
+        /* Hover effects */
+        [data-testid="stVerticalBlock"] > div > div > div > div.stColumn:hover {{
+            transform: translateY(-5px);
+        }}
+        
+        /* Buttons */
+        .stButton > button {{
+            border-radius: 12px !important;
+            font-weight: 600 !important;
+            background-color: {t['primary']} !important;
+            color: white !important;
+            border: none !important;
+            padding: 0.6rem 1.2rem !important;
+            transition: all 0.3s ease !important;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
+        }}
+        
+        .stButton > button:hover {{
+            background-color: {t['accent']} !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15) !important;
+        }}
+        
+        /* Sidebar */
+        [data-testid="stSidebar"] {{
+            background-color: {t['sidebar_bg']} !important;
+            border-right: 1px solid rgba(255,255,255,0.05);
+        }}
+        
+        [data-testid="stSidebar"] * {{
+            color: {t['sidebar_text']} !important;
+        }}
+        
+        /* Inputs & Selects */
+        div[data-baseweb="select"], div[data-baseweb="input"] {{
+            border-radius: 10px !important;
+        }}
+        
+        /* Metric customization */
+        [data-testid="stMetricValue"] {{
+            color: {t['primary']} !important;
+            font-weight: 700;
+        }}
+        
+        /* Headers */
+        h1, h2, h3 {{
+            font-weight: 600 !important;
+            letter-spacing: -0.5px;
+        }}
+        
+        .stMarkdown p {{
+            color: {t['text']} !important;
+        }}
+    </style>
+    """, unsafe_allow_html=True)
+
+# Initialisation du thème dans la session
+if 'theme' not in st.session_state:
+    st.session_state.theme = "Sombre Élite 🌙"
+
+# Sélecteur de thème en haut de la sidebar
+with st.sidebar:
+    st.markdown("### 🎨 Personnalisation")
+    new_theme = st.selectbox("Choisir l'ambiance", 
+                            ["Clair Modern ❄️", "Sombre Élite 🌙", "Émeraude Royal 👑", "Aurore Boréale 🌌"], 
+                            index=["Clair Modern ❄️", "Sombre Élite 🌙", "Émeraude Royal 👑", "Aurore Boréale 🌌"].index(st.session_state.theme))
+    if new_theme != st.session_state.theme:
+        st.session_state.theme = new_theme
+        st.rerun()
+
+apply_custom_theme(st.session_state.theme)
 
 # --- 3. FONCTIONS TECHNIQUES ---
 
@@ -263,7 +356,6 @@ def login():
         st.stop()
 
 # --- 4. INTERFACE ---
-st.set_page_config(page_title="Pharmaciel Pro", layout="wide")
 login()
 
 df_para = load_data()
