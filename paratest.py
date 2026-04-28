@@ -266,14 +266,22 @@ apply_custom_theme(st.session_state.theme)
 # --- 3. FONCTIONS TECHNIQUES ---
 
 def load_data():
-    cols = ['Produit', 'Laboratoire', 'Quantité', 'PPA', 'image_path', 'Famille', 'DDP', 'Promo', 'Prix_Achat', 'Description']
+    cols = ['Produit', 'Laboratoire', 'Quantité', 'PPA', 'image_path', 'Famille', 'DDP', 'Promo', 'Prix_Achat', 'Description', 'Dépôt', 'Arrivage']
     if not os.path.exists(DB_PATH): return pd.DataFrame(columns=cols)
     try:
         df = pd.read_csv(DB_PATH, encoding='utf-8-sig')
-        # Renommage flexible
-        df = df.rename(columns={'Quantité  Dépot': 'Quantité', 'Fournisseur': 'Famille'})
         
-        # Gestion des colonnes dupliquées (ex: deux colonnes 'Quantité')
+        # Renommage flexible pour supporter plusieurs formats d'export
+        rename_map = {
+            'Quantité  Dépot': 'Quantité', 
+            'Quantité Dépot': 'Quantité',
+            'Quantité Dépôt': 'Quantité',
+            'Fournisseur': 'Famille',
+            'Prix': 'PPA'
+        }
+        df = df.rename(columns=rename_map)
+        
+        # Gestion des colonnes dupliquées
         df = df.loc[:, ~df.columns.duplicated()]
         
         for c in cols:
@@ -288,8 +296,9 @@ def load_data():
         df['Quantité'] = pd.to_numeric(df['Quantité'], errors='coerce').fillna(0)
         df['Promo'] = df['Promo'].astype(bool)
         
-        # --- SUPPRESSION DES DOUBLONS (Même Produit + Même Prix) ---
-        # On groupe par Produit et PPA pour sommer les quantités et garder les autres infos
+        # --- REGROUPEMENT INTELLIGENT ---
+        # On groupe par Produit et PPA pour sommer les quantités
+        # On garde la DDP la plus proche ou la première rencontrée
         agg_rules = {c: 'first' for c in df.columns if c not in ['Produit', 'PPA', 'Quantité']}
         agg_rules['Quantité'] = 'sum'
         df = df.groupby(['Produit', 'PPA'], as_index=False).agg(agg_rules)
@@ -522,6 +531,8 @@ def show_details(row):
         st.header(row['Produit'])
         st.write(f"**🔬 Labo :** {row['Laboratoire']}")
         st.write(f"**📅 DDP :** {row['DDP']}")
+        if 'Arrivage' in row and row['Arrivage']: st.write(f"**🚚 Arrivage :** {row['Arrivage']}")
+        if 'Dépôt' in row and row['Dépôt']: st.write(f"**🏠 Dépôt :** {row['Dépôt']}")
         
         if st.session_state.user_role == "Responsable":
             st.write(f"**📦 Stock :** {row['Quantité']} unités")
@@ -657,7 +668,7 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
 
     with tabs[2]: # 🔄 SYNC EXCEL
         st.subheader("🔄 Synchronisation Base de Données")
-        st.info("Importez votre fichier Excel (Logipharm) pour mettre à jour les prix et ajouter les nouveaux produits sans supprimer vos images.")
+        st.info("Importez votre fichier Excel (format Dépôt, Produit, Quantité Dépot, DDP, PPA, Labo, Arrivage).")
         
         up_excel = st.file_uploader("Choisir le fichier Excel/CSV", type=['xlsx', 'csv'])
         if up_excel:
@@ -667,17 +678,43 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
                 else:
                     df_new = pd.read_csv(up_excel)
                 
-                st.write("Aperçu des données importées :", df_new.head(3))
+                st.write("🔍 Aperçu des données importées :", df_new.head(3))
                 
                 if st.button("🚀 Lancer la Synchronisation"):
-                    df_new['Produit'] = df_new['Produit'].str.upper().str.strip()
-                    merged = pd.merge(df_new, df_para[['Produit', 'image_path']], on='Produit', how='left')
+                    # Normalisation des noms de colonnes
+                    df_new = df_new.rename(columns={
+                        'Quantité  Dépot': 'Quantité', 
+                        'Quantité Dépot': 'Quantité',
+                        'Quantité Dépôt': 'Quantité',
+                        'Fournisseur': 'Famille',
+                        'Labo': 'Laboratoire'
+                    })
+                    
+                    df_new['Produit'] = df_new['Produit'].astype(str).str.upper().str.strip()
+                    
+                    # Nettoyage PPA (gestion du format "DZD 1,780.00")
+                    if 'PPA' in df_new.columns:
+                        df_new['PPA'] = df_new['PPA'].astype(str).str.replace('DZD', '', regex=False).str.replace(',', '', regex=False).str.strip()
+                        df_new['PPA'] = pd.to_numeric(df_new['PPA'], errors='coerce').fillna(0)
+
+                    # On fusionne avec les images existantes pour ne pas les perdre
+                    # On garde une seule entrée d'image par nom de produit
+                    df_img = df_para[['Produit', 'image_path']].drop_duplicates('Produit')
+                    merged = pd.merge(df_new, df_img, on='Produit', how='left')
                     merged['image_path'] = merged['image_path'].fillna("")
+                    
+                    # S'assurer que toutes les colonnes requises existent
+                    for c in ['Promo', 'Prix_Achat', 'Description', 'Famille', 'Laboratoire', 'DDP', 'Dépôt', 'Arrivage']:
+                        if c not in merged.columns:
+                            if c == 'Promo': merged[c] = False
+                            elif c == 'Prix_Achat': merged[c] = 0
+                            else: merged[c] = ""
+                    
                     save_data(merged)
-                    st.success("Synchronisation terminée !")
+                    st.success("✅ Synchronisation terminée avec succès !")
                     st.rerun()
             except Exception as e:
-                st.error(f"Erreur lors de l'import : {e}")
+                st.error(f"❌ Erreur lors de l'import : {e}")
 
     if "➕ Ajout" in t_tabs_names:
         with tabs[3]: # Ajout Manuel
