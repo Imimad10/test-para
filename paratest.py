@@ -34,7 +34,9 @@ def apply_custom_theme(theme_choice):
             "sidebar_bg": "#ffffff",
             "primary": "#007bff",
             "accent": "#0056b3",
-            "sidebar_text": "#1e293b"
+            "sidebar_text": "#1e293b",
+            "input_bg": "#ffffff",
+            "input_text": "#1e293b"
         },
         "Sombre Élite 🌙": {
             "bg": "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
@@ -43,7 +45,9 @@ def apply_custom_theme(theme_choice):
             "sidebar_bg": "#0f172a",
             "primary": "#38bdf8",
             "accent": "#0ea5e9",
-            "sidebar_text": "#f8fafc"
+            "sidebar_text": "#f8fafc",
+            "input_bg": "#334155",
+            "input_text": "#f8fafc"
         },
         "Émeraude Royal 👑": {
             "bg": "linear-gradient(135deg, #064e3b 0%, #022c22 100%)",
@@ -52,7 +56,9 @@ def apply_custom_theme(theme_choice):
             "sidebar_bg": "#022c22",
             "primary": "#fbbf24",
             "accent": "#f59e0b",
-            "sidebar_text": "#ecfdf5"
+            "sidebar_text": "#fbbf24",
+            "input_bg": "rgba(255, 255, 255, 0.1)",
+            "input_text": "#ffffff"
         },
         "Aurore Boréale 🌌": {
             "bg": "linear-gradient(135deg, #4c1d95 0%, #1e1b4b 100%)",
@@ -61,7 +67,20 @@ def apply_custom_theme(theme_choice):
             "sidebar_bg": "#1e1b4b",
             "primary": "#a78bfa",
             "accent": "#8b5cf6",
-            "sidebar_text": "#f5f3ff"
+            "sidebar_text": "#f5f3ff",
+            "input_bg": "rgba(255, 255, 255, 0.1)",
+            "input_text": "#ffffff"
+        },
+        "Cyberpunk ⚡": {
+            "bg": "linear-gradient(135deg, #000000 0%, #09090b 100%)",
+            "card_bg": "rgba(20, 20, 20, 0.9)",
+            "text": "#00ff9f",
+            "sidebar_bg": "#000000",
+            "primary": "#ff003c",
+            "accent": "#05d9e8",
+            "sidebar_text": "#05d9e8",
+            "input_bg": "#111111",
+            "input_text": "#00ff9f"
         }
     }
     
@@ -69,34 +88,91 @@ def apply_custom_theme(theme_choice):
     
     st.markdown(f"""
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Orbitron:wght@400;700&display=swap');
         
         html, body, [class*="css"] {{
             font-family: 'Outfit', sans-serif;
         }}
         
+        {".stApp { font-family: 'Orbitron', sans-serif !important; }" if theme_choice == "Cyberpunk ⚡" else ""}
+
         .stApp {{
             background: {t['bg']};
             background-attachment: fixed;
             color: {t['text']} !important;
         }}
         
+        /* Typography Fixes */
+        [data-testid="stHeader"] {{
+            background: transparent !important;
+        }}
+        
+        label, .stMarkdown p, .stText, .stCaption {{
+            color: {t['text']} !important;
+        }}
+        
+        [data-testid="stSidebar"] label, [data-testid="stSidebar"] .stMarkdown p {{
+            color: {t['sidebar_text']} !important;
+            font-weight: 600 !important;
+        }}
+
+        /* Promotion Marquee */
+        .marquee {{
+            width: 100%;
+            overflow: hidden;
+            background: {t['primary']};
+            color: {t['sidebar_bg']};
+            padding: 8px 0;
+            font-weight: bold;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }}
+        
+        .marquee div {{
+            display: inline-block;
+            white-space: nowrap;
+            animation: marquee 25s linear infinite;
+        }}
+        
+        @keyframes marquee {{
+            0% {{ transform: translateX(100%); }}
+            100% {{ transform: translateX(-100%); }}
+        }}
+
         /* Glassmorphism for Containers */
         [data-testid="stVerticalBlock"] > div > div > div > div.stColumn, .stContainer, div[data-testid="stExpander"] {{
             border-radius: 15px !important;
             border: 1px solid rgba(255,255,255,0.1) !important;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1) !important;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2) !important;
             background: {t['card_bg']} !important;
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             padding: 1.5rem;
             margin-bottom: 1rem;
-            transition: transform 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
         }}
         
-        /* Hover effects */
+        /* Shine Effect on Hover */
+        [data-testid="stVerticalBlock"] > div > div > div > div.stColumn::after {{
+            content: '';
+            position: absolute;
+            top: 0; left: -150%;
+            width: 50%; height: 100%;
+            background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0) 100%);
+            transform: skewX(-25deg);
+            transition: 0.75s;
+        }}
+        
+        [data-testid="stVerticalBlock"] > div > div > div > div.stColumn:hover::after {{
+            left: 150%;
+        }}
+
         [data-testid="stVerticalBlock"] > div > div > div > div.stColumn:hover {{
-            transform: translateY(-5px);
+            transform: translateY(-8px) scale(1.02);
+            border-color: {t['primary']} !important;
         }}
         
         /* Buttons */
@@ -104,44 +180,58 @@ def apply_custom_theme(theme_choice):
             border-radius: 12px !important;
             font-weight: 600 !important;
             background-color: {t['primary']} !important;
-            color: white !important;
+            color: {t['sidebar_bg']} !important;
             border: none !important;
             padding: 0.6rem 1.2rem !important;
             transition: all 0.3s ease !important;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }}
         
         .stButton > button:hover {{
             background-color: {t['accent']} !important;
-            transform: translateY(-2px) !important;
-            box-shadow: 0 6px 12px rgba(0,0,0,0.15) !important;
+            transform: translateY(-2px) scale(1.05) !important;
+            box-shadow: 0 8px 15px rgba(0,0,0,0.2) !important;
         }}
         
         /* Sidebar */
         [data-testid="stSidebar"] {{
             background-color: {t['sidebar_bg']} !important;
-            border-right: 1px solid rgba(255,255,255,0.05);
+            border-right: 1px solid rgba(255,255,255,0.1);
         }}
         
-        [data-testid="stSidebar"] * {{
-            color: {t['sidebar_text']} !important;
-        }}
-        
-        /* Inputs & Selects */
-        div[data-baseweb="select"], div[data-baseweb="input"] {{
+        /* Inputs & Selects Visibility Fix */
+        div[data-baseweb="select"], div[data-baseweb="input"], div[data-baseweb="textarea"] {{
+            background-color: {t['input_bg']} !important;
             border-radius: 10px !important;
+            border: 1px solid rgba(255,255,255,0.2) !important;
+        }}
+        
+        div[data-baseweb="select"] *, div[data-baseweb="input"] input, div[data-baseweb="textarea"] textarea {{
+            color: {t['input_text']} !important;
+        }}
+
+        /* Placeholder visibility */
+        input::placeholder, textarea::placeholder {{
+            color: {t['input_text']} !important;
+            opacity: 0.7 !important;
         }}
         
         /* Metric customization */
         [data-testid="stMetricValue"] {{
             color: {t['primary']} !important;
             font-weight: 700;
+            text-shadow: 0 0 10px rgba(0,0,0,0.2);
         }}
         
         /* Headers */
         h1, h2, h3 {{
-            font-weight: 600 !important;
-            letter-spacing: -0.5px;
+            font-weight: 700 !important;
+            letter-spacing: -1px;
+            background: linear-gradient(90deg, {t['primary']}, {t['accent']});
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }}
         
         .stMarkdown p {{
@@ -149,17 +239,24 @@ def apply_custom_theme(theme_choice):
         }}
     </style>
     """, unsafe_allow_html=True)
+    
+    # Marquee banner if there are promos
+    st.markdown(f"""
+    <div class="marquee">
+        <div>🚀 BIENVENUE SUR PHARMACIEL PRO - LES MEILLEURES OFFRES SONT ICI ! ✨ LIVRAISON RAPIDE DISPONIBLE ✨ -10% SUR LA GAMME COSMÉTIQUE CE MOIS-CI ! 🚀</div>
+    </div>
+    """, unsafe_allow_html=True)
 
 # Initialisation du thème dans la session
 if 'theme' not in st.session_state:
-    st.session_state.theme = "Sombre Élite 🌙"
+    st.session_state.theme = "Émeraude Royal 👑"
 
 # Sélecteur de thème en haut de la sidebar
 with st.sidebar:
     st.markdown("### 🎨 Personnalisation")
     new_theme = st.selectbox("Choisir l'ambiance", 
-                            ["Clair Modern ❄️", "Sombre Élite 🌙", "Émeraude Royal 👑", "Aurore Boréale 🌌"], 
-                            index=["Clair Modern ❄️", "Sombre Élite 🌙", "Émeraude Royal 👑", "Aurore Boréale 🌌"].index(st.session_state.theme))
+                            ["Clair Modern ❄️", "Sombre Élite 🌙", "Émeraude Royal 👑", "Aurore Boréale 🌌", "Cyberpunk ⚡"], 
+                            index=["Clair Modern ❄️", "Sombre Élite 🌙", "Émeraude Royal 👑", "Aurore Boréale 🌌", "Cyberpunk ⚡"].index(st.session_state.theme))
     if new_theme != st.session_state.theme:
         st.session_state.theme = new_theme
         st.rerun()
@@ -732,8 +829,9 @@ elif menu in ["🛒 Mon Panier", "🛒 Commandes Client"]:
         
         msg_cart = f"Bonjour Pharmaciel, voici ma commande (Proforma) :\n" + "\n".join([f"- {k} (x{v['qty']}) : {v['price']*v['qty']} DA" for k,v in st.session_state.cart.items()])
         if c3.button("✅ Valider & WhatsApp", use_container_width=True):
+            st.balloons()
             save_sale(st.session_state.cart, total_cmd, st.session_state.current_user)
-            st.success("Proforma enregistrée !")
+            st.success("🚀 Commande validée avec succès !")
             st.link_button("Ouvrir WhatsApp", f"https://wa.me/?text={urllib.parse.quote(msg_cart)}")
 
 # --- ONGLET 3 : ADMIN ---
