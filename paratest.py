@@ -674,13 +674,30 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
         if up_excel:
             try:
                 if up_excel.name.endswith('.xlsx'):
-                    df_new = pd.read_excel(up_excel)
+                    # Tentative de lecture intelligente (cherche la feuille contenant des données)
+                    xl = pd.ExcelFile(up_excel)
+                    df_new = pd.read_excel(up_excel, sheet_name=0)
+                    
+                    # Si la première feuille semble vide ou incorrecte, on cherche dans les autres
+                    if df_new.empty or 'Produit' not in df_new.columns:
+                        for sheet in xl.sheet_names:
+                            temp_df = pd.read_excel(up_excel, sheet_name=sheet)
+                            if 'Produit' in temp_df.columns:
+                                df_new = temp_df
+                                break
                 else:
                     df_new = pd.read_csv(up_excel)
                 
-                st.write("🔍 Aperçu des données importées :", df_new.head(3))
+                # NETTOYAGE : Supprimer les lignes vides ou sans nom de produit
+                if 'Produit' in df_new.columns:
+                    df_new = df_new.dropna(subset=['Produit'])
                 
-                if st.button("🚀 Lancer la Synchronisation"):
+                st.write("🔍 Aperçu des données détectées :", df_new.head(5))
+                
+                if df_new.empty:
+                    st.warning("⚠️ Aucune donnée valide trouvée. Vérifiez que la colonne 'Produit' existe et n'est pas vide.")
+                
+                if st.button("🚀 Lancer la Synchronisation", disabled=df_new.empty):
                     # Normalisation des noms de colonnes
                     df_new = df_new.rename(columns={
                         'Quantité  Dépot': 'Quantité', 
@@ -698,7 +715,6 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
                         df_new['PPA'] = pd.to_numeric(df_new['PPA'], errors='coerce').fillna(0)
 
                     # On fusionne avec les images existantes pour ne pas les perdre
-                    # On garde une seule entrée d'image par nom de produit
                     df_img = df_para[['Produit', 'image_path']].drop_duplicates('Produit')
                     merged = pd.merge(df_new, df_img, on='Produit', how='left')
                     merged['image_path'] = merged['image_path'].fillna("")
