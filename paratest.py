@@ -11,6 +11,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 import io
+import json
 
 # --- 1. CONFIGURATION & CHEMINS ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -18,8 +19,20 @@ IMG_DIR = os.path.join(BASE_DIR, 'images_stock')
 DB_PATH = os.path.join(BASE_DIR, 'database_para.csv')
 USER_DB = os.path.join(BASE_DIR, 'users.csv')
 SALES_DB = os.path.join(BASE_DIR, 'ventes.csv')
+SETTINGS_FILE = os.path.join(BASE_DIR, 'settings.json')
 
 if not os.path.exists(IMG_DIR): os.makedirs(IMG_DIR)
+
+def load_settings():
+    if os.path.exists(SETTINGS_FILE):
+        try:
+            with open(SETTINGS_FILE, 'r', encoding='utf-8') as f: return json.load(f)
+        except: pass
+    return {"marquee": "🚀 BIENVENUE SUR PHARMACIEL PRO - LES MEILLEURES OFFRES SONT ICI ! ✨ LIVRAISON RAPIDE DISPONIBLE ✨"}
+
+def save_settings(settings):
+    with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(settings, f, ensure_ascii=False, indent=4)
 
 # --- 2. CONFIGURATION DE PAGE ---
 st.set_page_config(page_title="Pharmaciel Pro", layout="wide", page_icon="💊")
@@ -239,17 +252,18 @@ def apply_custom_theme(theme_choice):
         }}
     </style>
     """, unsafe_allow_html=True)
-    
-    # Marquee banner if there are promos
-    st.markdown(f"""
-    <div class="marquee">
-        <div>🚀 BIENVENUE SUR PHARMACIEL PRO - LES MEILLEURES OFFRES SONT ICI ! ✨ LIVRAISON RAPIDE DISPONIBLE ✨ -10% SUR LA GAMME COSMÉTIQUE CE MOIS-CI ! 🚀</div>
-    </div>
-    """, unsafe_allow_html=True)
 
-# Initialisation du thème dans la session
+# Initialisation du thème et des réglages
+settings = load_settings()
 if 'theme' not in st.session_state:
     st.session_state.theme = "Émeraude Royal 👑"
+
+# Affichage du Marquee Dynamique
+st.markdown(f"""
+<div class="marquee">
+    <div>{settings.get('marquee', '')}</div>
+</div>
+""", unsafe_allow_html=True)
 
 # Sélecteur de thème en haut de la sidebar
 with st.sidebar:
@@ -637,34 +651,60 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
     with tabs[1]: # Images & Web
         st.subheader("🖼️ Gestion des visuels")
         
-        # Filtre pour ne garder que les produits sans image dans la liste déroulante
-        df_sans_image = df_para[
-            (df_para['image_path'].isna()) | 
-            (df_para['image_path'] == "") | 
-            (df_para['image_path'].str.len() < 3)
-        ]
+        mode_img = st.radio("Mode d'ajout", ["Un par un", "⚡ Importation Groupée (Rapide)"], horizontal=True)
         
-        if df_sans_image.empty:
-            st.success("🎉 Tous les produits ont déjà une photo !")
-        else:
-            liste_produits = sorted(df_sans_image['Produit'].unique())
-            sel_prod = st.selectbox("Sélectionner un produit (sans photo)", liste_produits)
+        if mode_img == "Un par un":
+            df_sans_image = df_para[
+                (df_para['image_path'].isna()) | 
+                (df_para['image_path'] == "") | 
+                (df_para['image_path'].str.len() < 3)
+            ]
             
-            c1, c2 = st.columns(2)
-            with c1:
-                uploaded_file = st.file_uploader("Charger une photo", type=['png', 'jpg', 'jpeg'])
-                if uploaded_file and st.button("💾 Lier cette image"):
-                    fname = f"{clean_filename(sel_prod)}.{uploaded_file.name.split('.')[-1]}"
-                    with open(os.path.join(IMG_DIR, fname), "wb") as f: f.write(uploaded_file.getbuffer())
+            if df_sans_image.empty:
+                st.success("🎉 Tous les produits ont déjà une photo !")
+            else:
+                liste_produits = sorted(df_sans_image['Produit'].unique())
+                sel_prod = st.selectbox("Sélectionner un produit", liste_produits)
+                
+                c1, c2 = st.columns(2)
+                with c1:
+                    uploaded_file = st.file_uploader("Charger une photo", type=['png', 'jpg', 'jpeg'], key="single_up")
+                    if uploaded_file and st.button("💾 Lier cette image"):
+                        fname = f"{clean_filename(sel_prod)}.{uploaded_file.name.split('.')[-1]}"
+                        with open(os.path.join(IMG_DIR, fname), "wb") as f: f.write(uploaded_file.getbuffer())
+                        df_para.loc[df_para['Produit'] == sel_prod, 'image_path'] = fname
+                        save_data(df_para)
+                        st.success(f"Image liée à {sel_prod}")
+                        st.rerun()
+                with c2:
+                    st.info("Recherche rapide")
+                    st.link_button("🌐 Chercher sur Google Images", f"https://www.google.com/search?tbm=isch&q={sel_prod.replace(' ','+')}")
+        
+        else: # IMPORT GROUPÉ
+            st.info("💡 **Astuce** : Nommez vos images exactement comme vos produits (ex: `DOLIPRANE.jpg`). Le système les liera automatiquement !")
+            bulk_files = st.file_uploader("Glissez toutes vos images ici", type=['png', 'jpg', 'jpeg'], accept_multiple_files=True)
+            
+            if bulk_files and st.button(f"🚀 Lier {len(bulk_files)} images"):
+                count = 0
+                for f in bulk_files:
+                    # On cherche le produit qui correspond au nom du fichier (sans extension)
+                    prod_name_guess = f.name.split('.')[0].upper().replace('_', ' ')
+                    # On nettoie pour comparer
+                    clean_guess = clean_filename(prod_name_guess)
                     
-                    df_para.loc[df_para['Produit'] == sel_prod, 'image_path'] = fname
-                    save_data(df_para)
+                    # On cherche dans le DF
+                    # On peut aussi simplement lier si le produit existe
+                    match = df_para[df_para['Produit'].apply(clean_filename) == clean_guess]
                     
-                    st.success(f"Image liée à {sel_prod}")
-                    st.rerun()
-            with c2:
-                st.info("Recherche rapide")
-                st.link_button("🌐 Chercher sur Google Images", f"https://www.google.com/search?tbm=isch&q={sel_prod.replace(' ','+')}")
+                    if not match.empty:
+                        fname = f"{clean_guess}.{f.name.split('.')[-1]}"
+                        with open(os.path.join(IMG_DIR, fname), "wb") as out: out.write(f.getbuffer())
+                        df_para.loc[df_para['Produit'].apply(clean_filename) == clean_guess, 'image_path'] = fname
+                        count += 1
+                
+                save_data(df_para)
+                st.success(f"✅ {count} images liées automatiquement !")
+                st.rerun()
 
     with tabs[2]: # 🔄 SYNC EXCEL
         st.subheader("🔄 Synchronisation Base de Données")
@@ -919,6 +959,16 @@ elif menu == "⚙️ Admin":
                 u_db = pd.concat([u_db, pd.DataFrame([{"user": str(nu), "pw": str(np), "role": str(nr)}])], ignore_index=True)
                 save_data(u_db, USER_DB)
                 st.rerun()
+
+    st.divider()
+    st.subheader("📢 Communication")
+    with st.form("settings_form"):
+        new_marquee = st.text_input("Message de bienvenue (Bandeau défilant)", value=settings.get('marquee', ''))
+        if st.form_submit_button("💾 Enregistrer le message"):
+            settings['marquee'] = new_marquee
+            save_settings(settings)
+            st.success("Message mis à jour !")
+            st.rerun()
 
     st.divider()
     st.subheader("🛠️ Maintenance & Backups")
