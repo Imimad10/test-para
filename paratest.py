@@ -12,6 +12,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 import io
 import json
+import google.generativeai as genai
 
 # --- 1. CONFIGURATION & CHEMINS ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -681,26 +682,47 @@ def show_details(row):
         with st.expander("🤖 Assistant Expert IA (Conseils)", expanded=True):
             st.chat_message("assistant").write(f"Bonjour ! Je suis votre conseiller **Pharmaciel AI**. Je connais très bien le produit **{row['Produit']}** du laboratoire **{row['Laboratoire']}**. Comment puis-je vous aider ?")
             
+            # Récupération de la clé API Gemini depuis les settings
+            api_key = settings.get('gemini_key', '')
+            
             # Champ de question
             q_key = f"ai_query_{row['Produit']}_{row['Laboratoire']}"
-            user_q = st.text_input("Posez votre question ici...", key=q_key, placeholder="Ex: C'est pour quel type de peau ? Comment l'utiliser ?")
+            user_q = st.text_input("Posez votre question ici...", key=q_key, placeholder="Ex: C'est pour quel type de peau ? Routine conseillée ?")
             
             if user_q:
-                with st.spinner("Analyse du produit..."):
-                    # Logique de réponse intelligente
-                    r = ""
-                    u_q = user_q.lower()
-                    if "utiliser" in u_q or "mode" in u_q or "comment" in u_q:
-                        r = f"Le **{row['Produit']}** s'utilise généralement en cure ou selon les besoins quotidiens. Étant un produit de la famille **{row['Famille']}**, il est important de suivre les recommandations du laboratoire **{row['Laboratoire']}** indiquées sur l'emballage."
-                    elif "peau" in u_q or "cheveux" in u_q or "pour qui" in u_q:
-                        r = f"Ce produit est spécifiquement conçu pour répondre aux besoins de la gamme **{row['Famille']}**. Il est très apprécié pour son efficacité et sa tolérance, caractéristiques du savoir-faire de **{row['Laboratoire']}**."
-                    elif "prix" in u_q or "cher" in u_q:
-                        r = f"Son prix de **{row['PPA']} DA** est très compétitif pour un produit de cette qualité professionnelle."
+                with st.spinner("L'expert IA analyse votre demande..."):
+                    if api_key:
+                        try:
+                            genai.configure(api_key=api_key)
+                            model = genai.GenerativeModel('gemini-pro')
+                            prompt = f"""
+                            Tu es un expert en parapharmacie pour le magasin 'Pharmaciel'. 
+                            Aide le client pour le produit suivant :
+                            Nom: {row['Produit']}
+                            Laboratoire: {row['Laboratoire']}
+                            Famille: {row['Famille']}
+                            Description actuelle: {row['Description']}
+                            
+                            Question du client: {user_q}
+                            
+                            Réponds de manière professionnelle, rassurante et précise. Si tu ne connais pas le produit, donne des conseils généraux basés sur sa famille ({row['Famille']}).
+                            """
+                            response = model.generate_content(prompt)
+                            r = response.text
+                        except:
+                            r = f"Désolé, une erreur technique est survenue avec l'IA. (Vérifiez votre clé API dans l'onglet Admin)."
                     else:
-                        r = f"Le **{row['Produit']}** est un excellent choix dans la catégorie **{row['Famille']}**. Sa date de péremption au **{row['DDP']}** garantit une utilisation en toute sécurité. Avez-vous d'autres questions ?"
+                        # Logique de secours améliorée
+                        u_q = user_q.lower()
+                        if "utiliser" in u_q or "comment" in u_q:
+                            r = f"Le **{row['Produit']}** s'utilise généralement selon les besoins quotidiens. Étant de la famille **{row['Famille']}**, il est conseillé de suivre les indications de **{row['Laboratoire']}**."
+                        elif "prix" in u_q:
+                            r = f"Le prix est de **{row['PPA']} DA**. C'est un excellent rapport qualité-prix."
+                        else:
+                            r = f"C'est un produit très demandé de la catégorie **{row['Famille']}**. Pour un conseil expert, veuillez configurer la clé API Gemini dans les réglages."
                     
                     st.chat_message("user").write(user_q)
-                    st.chat_message("assistant").write(f"✨ **Réponse :** {r}")
+                    st.chat_message("assistant").write(f"✨ **Réponse de l'expert :** {r}")
                     add_log("Question IA", f"Produit: {row['Produit']} | Q: {user_q}")
 
 # --- ONGLET 1 : CATALOGUE ---
@@ -1082,7 +1104,28 @@ elif menu in ["🛒 Mon Panier", "🛒 Commandes Client"]:
 
 # --- ONGLET 3 : ADMIN ---
 elif menu == "⚙️ Admin":
-    st.title("⚙️ Administration (Accès Maître)")
+    st.title("⚙️ Administration & Configuration")
+    
+    # 1. PARAMÈTRES GLOBAUX
+    with st.expander("🌐 Paramètres de l'Application", expanded=True):
+        st.subheader("Bandeau & IA")
+        new_msg = st.text_area("Message défilant (Marquee)", value=settings.get('marquee', ''))
+        
+        st.divider()
+        st.markdown("### 🤖 Intelligence Artificielle (Google Gemini)")
+        st.info("Pour des réponses intelligentes, obtenez une clé gratuite sur [Google AI Studio](https://aistudio.google.com/app/apikey)")
+        new_gemini = st.text_input("Clé API Gemini", value=settings.get('gemini_key', ''), type="password")
+        
+        if st.button("💾 Enregistrer les Paramètres", use_container_width=True):
+            settings['marquee'] = new_msg
+            settings['gemini_key'] = new_gemini
+            save_settings(settings)
+            st.success("Paramètres enregistrés !")
+            st.rerun()
+
+    st.divider()
+    
+    # 2. GESTION ÉQUIPE
     u_db = load_users()
     st.subheader("👥 Gestion de l'équipe")
     for index, row in u_db.iterrows():
