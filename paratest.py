@@ -120,13 +120,16 @@ def apply_custom_theme(theme_choice):
             background: transparent !important;
         }}
         
-        label, .stMarkdown p, .stText, .stCaption {{
+        label, .stMarkdown p, .stText, .stCaption, [data-testid="stWidgetLabel"] p {{
             color: {t['text']} !important;
+            opacity: 1 !important;
         }}
         
-        [data-testid="stSidebar"] label, [data-testid="stSidebar"] .stMarkdown p {{
-            color: {t['sidebar_text']} !important;
+        /* Navigation Radio Buttons */
+        div[data-testid="stHorizontalRadio"] label p {{
+            color: {t['text']} !important;
             font-weight: 600 !important;
+            font-size: 1rem !important;
         }}
 
         /* Promotion Marquee */
@@ -260,7 +263,13 @@ def apply_custom_theme(theme_choice):
         
         /* Toggle Styling */
         div[data-testid="stToggle"] p {{
-            color: {t['primary']} !important;
+            color: {t['text']} !important;
+            font-weight: 600 !important;
+        }}
+        
+        /* Selectbox and Input Labels */
+        .stSelectbox label p, .stTextInput label p, .stNumberInput label p {{
+            color: {t['text']} !important;
             font-weight: 600 !important;
         }}
     </style>
