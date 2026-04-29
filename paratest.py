@@ -253,6 +253,20 @@ def apply_custom_theme(theme_choice):
             text-shadow: 0 0 10px rgba(0,0,0,0.2);
         }}
         
+        /* Fixed Height Cards for Grid */
+        div[data-testid="stVerticalBlock"] > div > div > div > div.stColumn > div {{
+             min-height: 420px !important;
+             display: flex;
+             flex-direction: column;
+             justify-content: space-between;
+        }}
+
+        .stImage img {{
+            height: 180px !important;
+            object-fit: contain !important;
+            background: transparent !important;
+        }}
+
         /* Headers */
         h1, h2, h3 {{
             font-weight: 700 !important;
@@ -260,10 +274,12 @@ def apply_custom_theme(theme_choice):
             background: linear-gradient(90deg, {t['primary']}, {t['accent']});
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem !important;
         }}
         
         .stMarkdown p {{
             color: {t['text']} !important;
+            margin-bottom: 0px !important;
         }}
         
         /* Custom PDF Button */
@@ -821,11 +837,13 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
                                 img = get_image_base64(row['image_path'])
                                 if img: st.image(img, use_container_width=True)
                                 
-                                # Badges
-                                badge_cols = st.columns(2)
+                                # Badges compacts
+                                badge_html = ""
                                 if st.session_state.user_role != "Client" and row['Quantité'] < 5: 
-                                    badge_cols[0].caption("🔴 Stock Faible")
-                                if row['Promo']: badge_cols[1].markdown("🔥 **PROMO**")
+                                    badge_html += '<span style="background:rgba(255,0,0,0.1); color:red; padding:2px 6px; border-radius:4px; font-size:10px; margin-right:5px;">⚠️ Stock Bas</span>'
+                                if row['Promo']: 
+                                    badge_html += '<span style="background:rgba(255,165,0,0.1); color:orange; padding:2px 6px; border-radius:4px; font-size:10px;">🔥 PROMO</span>'
+                                if badge_html: st.markdown(f'<div style="margin-bottom:5px;">{badge_html}</div>', unsafe_allow_html=True)
                                 
                                 st.markdown(f"**{row['Produit']}**")
                                 p_disp = f"{row['PPA']} DA" if row['PPA'] > 0 else "Prix sur demande"
