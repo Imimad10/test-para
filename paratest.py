@@ -53,6 +53,14 @@ with st.sidebar:
             st.download_button("🔥 Flyer PROMO", p_flyer, "Promotions.pdf", use_container_width=True)
 
     st.divider()
+    # Thèmes
+    with st.expander("🎨 Personnalisation", expanded=False):
+        theme_list = ["Clair Modern ❄️", "Sombre Élite 🌙", "Émeraude Royal 👑", "Aurore Boréale 🌌", "Cyberpunk ⚡"]
+        new_theme = st.selectbox("Ambiance", theme_list, index=theme_list.index(st.session_state.theme))
+        if new_theme != st.session_state.theme:
+            st.session_state.theme = new_theme
+            st.rerun()
+
     if st.button("🚪 Déconnexion", use_container_width=True): logout()
 
 # --- PAGES ---

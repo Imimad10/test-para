@@ -12,7 +12,7 @@ THEMES = {
 }
 
 def get_image_base64(image_path):
-    if not image_path: return None
+    if not isinstance(image_path, str) or not image_path: return None
     full_path = os.path.join(IMG_DIR, image_path)
     if os.path.exists(full_path):
         with open(full_path, "rb") as f:
