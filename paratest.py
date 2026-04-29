@@ -290,7 +290,7 @@ def apply_custom_theme(theme_choice):
 # Initialisation du thème et des réglages
 settings = load_settings()
 if 'theme' not in st.session_state:
-    st.session_state.theme = "Émeraude Royal 👑"
+    st.session_state.theme = "Clair Modern ❄️"
 
 apply_custom_theme(st.session_state.theme)
 
