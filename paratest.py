@@ -101,11 +101,11 @@ if menu == "📦 Catalogue":
                             st.markdown(f"**{row['Produit']}**")
                             st.caption(row['Laboratoire'])
                             st.subheader(f"{row['PPA']} DA")
-                            if st.button("Détails", key=f"d_{row['Produit']}"):
+                            if st.button("Détails", key=f"det_{i+j}_{row['Produit']}"):
                                 @st.dialog("Fiche Produit", width="large")
                                 def dialog_details(r): show_product_details(r, settings)
                                 dialog_details(row)
-                            if st.button("🛒", key=f"a_{row['Produit']}", use_container_width=True):
+                            if st.button("🛒", key=f"cart_{i+j}_{row['Produit']}", use_container_width=True):
                                 if row['Produit'] in st.session_state.cart: st.session_state.cart[row['Produit']]['qty'] += 1
                                 else: st.session_state.cart[row['Produit']] = {'price': row['PPA'], 'qty': 1}
                                 st.toast("Ajouté !")
