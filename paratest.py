@@ -694,66 +694,67 @@ def show_details(row):
         st.markdown(f'<a href="https://wa.me/?text={msg}" target="_blank" style="background-color:#25D366; color:white; padding:10px; border-radius:5px; text-decoration:none; display:block; text-align:center;">Partager WhatsApp</a>', unsafe_allow_html=True)
 
         # --- ASSISTANT IA CONSEIL ---
-        st.divider()
-        with st.expander("🤖 Assistant Expert IA (Conseils)", expanded=True):
-            st.chat_message("assistant").write(f"Bonjour ! Je suis votre conseiller **Pharmaciel AI**. Je connais très bien le produit **{row['Produit']}** du laboratoire **{row['Laboratoire']}**. Comment puis-je vous aider ?")
-            
-            # Récupération de la clé API Gemini depuis les settings
-            api_key = settings.get('gemini_key', '')
-            
-            # Champ de question
-            q_key = f"ai_query_{row['Produit']}_{row['Laboratoire']}"
-            user_q = st.text_input("Posez votre question ici...", key=q_key, placeholder="Ex: C'est pour quel type de peau ? Routine conseillée ?")
-            
-            if user_q:
-                with st.spinner("L'expert IA analyse votre demande..."):
-                    if api_key:
-                        try:
-                            api_key = api_key.strip()
-                            genai.configure(api_key=api_key)
-                            
-                            prompt = f"""
-                            Tu es un expert en parapharmacie pour le magasin 'Pharmaciel'. 
-                            Aide le client pour le produit suivant :
-                            Nom: {row['Produit']}
-                            Laboratoire: {row['Laboratoire']}
-                            Famille: {row['Famille']}
-                            Description actuelle: {row['Description']}
-                            
-                            Question du client: {user_q}
-                            
-                            Réponds de manière professionnelle, rassurante et précise. Si tu ne connais pas le produit, donne des conseils généraux basés sur sa famille ({row['Famille']}).
-                            """
-                            
-                            # Recherche dynamique du modèle disponible
-                            available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-                            target_model = "gemini-1.5-flash" # Par défaut
-                            if available_models:
-                                for am in available_models:
-                                    if "1.5-flash" in am: 
-                                        target_model = am
-                                        break
-                                    elif "gemini-pro" in am or "1.0-pro" in am:
-                                        target_model = am
-                            
-                            model = genai.GenerativeModel(target_model)
-                            response = model.generate_content(prompt)
-                            r = response.text
-                        except Exception as e:
-                            r = f"Erreur IA : {str(e)} (Vérifiez votre clé API dans l'onglet Admin)."
-                    else:
-                        # Logique de secours améliorée
-                        u_q = user_q.lower()
-                        if "utiliser" in u_q or "comment" in u_q:
-                            r = f"Le **{row['Produit']}** s'utilise généralement selon les besoins quotidiens. Étant de la famille **{row['Famille']}**, il est conseillé de suivre les indications de **{row['Laboratoire']}**."
-                        elif "prix" in u_q:
-                            r = f"Le prix est de **{row['PPA']} DA**. C'est un excellent rapport qualité-prix."
+        if settings.get('ai_active', True):
+            st.divider()
+            with st.expander("🤖 Assistant Expert IA (Conseils)", expanded=True):
+                st.chat_message("assistant").write(f"Bonjour ! Je suis votre conseiller **Pharmaciel AI**. Je connais très bien le produit **{row['Produit']}** du laboratoire **{row['Laboratoire']}**. Comment puis-je vous aider ?")
+                
+                # Récupération de la clé API Gemini depuis les settings
+                api_key = settings.get('gemini_key', '')
+                
+                # Champ de question
+                q_key = f"ai_query_{row['Produit']}_{row['Laboratoire']}"
+                user_q = st.text_input("Posez votre question ici...", key=q_key, placeholder="Ex: C'est pour quel type de peau ? Routine conseillée ?")
+                
+                if user_q:
+                    with st.spinner("L'expert IA analyse votre demande..."):
+                        if api_key:
+                            try:
+                                api_key = api_key.strip()
+                                genai.configure(api_key=api_key)
+                                
+                                prompt = f"""
+                                Tu es un expert en parapharmacie pour le magasin 'Pharmaciel'. 
+                                Aide le client pour le produit suivant :
+                                Nom: {row['Produit']}
+                                Laboratoire: {row['Laboratoire']}
+                                Famille: {row['Famille']}
+                                Description actuelle: {row['Description']}
+                                
+                                Question du client: {user_q}
+                                
+                                Réponds de manière professionnelle, rassurante et précise. Si tu ne connais pas le produit, donne des conseils généraux basés sur sa famille ({row['Famille']}).
+                                """
+                                
+                                # Recherche dynamique du modèle disponible
+                                available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                                target_model = "gemini-1.5-flash" # Par défaut
+                                if available_models:
+                                    for am in available_models:
+                                        if "1.5-flash" in am: 
+                                            target_model = am
+                                            break
+                                        elif "gemini-pro" in am or "1.0-pro" in am:
+                                            target_model = am
+                                
+                                model = genai.GenerativeModel(target_model)
+                                response = model.generate_content(prompt)
+                                r = response.text
+                            except Exception as e:
+                                r = f"Erreur IA : {str(e)} (Vérifiez votre clé API dans l'onglet Admin)."
                         else:
-                            r = f"C'est un produit très demandé de la catégorie **{row['Famille']}**. Pour un conseil expert, veuillez configurer la clé API Gemini dans les réglages."
-                    
-                    st.chat_message("user").write(user_q)
-                    st.chat_message("assistant").write(f"✨ **Réponse de l'expert :** {r}")
-                    add_log("Question IA", f"Produit: {row['Produit']} | Q: {user_q}")
+                            # Logique de secours améliorée
+                            u_q = user_q.lower()
+                            if "utiliser" in u_q or "comment" in u_q:
+                                r = f"Le **{row['Produit']}** s'utilise généralement selon les besoins quotidiens. Étant de la famille **{row['Famille']}**, il est conseillé de suivre les indications de **{row['Laboratoire']}**."
+                            elif "prix" in u_q:
+                                r = f"Le prix est de **{row['PPA']} DA**. C'est un excellent rapport qualité-prix."
+                            else:
+                                r = f"C'est un produit très demandé de la catégorie **{row['Famille']}**. Pour un conseil expert, veuillez configurer la clé API Gemini dans les réglages."
+                        
+                        st.chat_message("user").write(user_q)
+                        st.chat_message("assistant").write(f"✨ **Réponse de l'expert :** {r}")
+                        add_log("Question IA", f"Produit: {row['Produit']} | Q: {user_q}")
 
 # --- ONGLET 1 : CATALOGUE ---
 if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
@@ -1146,11 +1147,17 @@ elif menu == "⚙️ Admin":
         st.divider()
         st.markdown("### 🤖 Intelligence Artificielle (Google Gemini)")
         st.info("Pour des réponses intelligentes, obtenez une clé gratuite sur [Google AI Studio](https://aistudio.google.com/app/apikey)")
-        new_gemini = st.text_input("Clé API Gemini", value=settings.get('gemini_key', ''), type="password")
+        
+        c_ai1, c_ai2 = st.columns([2, 1])
+        with c_ai1:
+            new_gemini = st.text_input("Clé API Gemini", value=settings.get('gemini_key', ''), type="password")
+        with c_ai2:
+            ai_active = st.toggle("Activer l'IA", value=settings.get('ai_active', True))
         
         if st.button("💾 Enregistrer les Paramètres", use_container_width=True):
             settings['marquee'] = new_msg
             settings['gemini_key'] = new_gemini
+            settings['ai_active'] = ai_active
             save_settings(settings)
             st.success("Paramètres enregistrés !")
             st.rerun()
