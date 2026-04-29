@@ -265,15 +265,62 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Sélecteur de thème en haut de la sidebar
-with st.sidebar:
-    st.markdown("### 🎨 Personnalisation")
-    new_theme = st.selectbox("Choisir l'ambiance", 
-                            ["Clair Modern ❄️", "Sombre Élite 🌙", "Émeraude Royal 👑", "Aurore Boréale 🌌", "Cyberpunk ⚡"], 
-                            index=["Clair Modern ❄️", "Sombre Élite 🌙", "Émeraude Royal 👑", "Aurore Boréale 🌌", "Cyberpunk ⚡"].index(st.session_state.theme))
-    if new_theme != st.session_state.theme:
-        st.session_state.theme = new_theme
-        st.rerun()
+# --- NAVIGATION & FILTRES EN HAUT (HEADER) ---
+def render_header(nav_options):
+    settings = load_settings()
+    
+    # 1. Barre Supérieure : Logo | Utilisateur | Thème
+    c_logo, c_space, c_user_info = st.columns([3, 4, 3])
+    
+    with c_logo:
+        st.markdown(f"## 💊 Pharmaciel Pro")
+        
+    with c_user_info:
+        c_u1, c_u2 = st.columns([2, 1])
+        c_u1.markdown(f"👤 **{st.session_state.current_user}**")
+        if c_u2.button("🚪", help="Déconnexion"):
+            st.session_state.auth = False
+            st.session_state.user_role = None
+            st.session_state.current_user = None
+            st.rerun()
+
+    # 2. Barre de Navigation Horizontale
+    st.divider()
+    menu_choice = st.radio("Navigation", nav_options, horizontal=True, label_visibility="collapsed")
+    
+    # 3. Zone d'outils (Filtres, Panier, Thème)
+    col_f1, col_f2, col_f3 = st.columns([4, 3, 3])
+    
+    with col_f1.expander("🎯 Filtres & Recherche", expanded=False):
+        f_famille = st.selectbox("Famille", ["Toutes"] + sorted([f for f in df_para['Famille'].unique() if f]))
+        f_labo = st.selectbox("Laboratoire", ["Tous"] + sorted([l for l in df_para['Laboratoire'].unique() if l]))
+        f_alerte = st.selectbox("Alertes Stock/DDP", ["Aucune", "Stock Bas (<5)", "Péremption Proche"])
+    
+    with col_f2.expander("🛒 Mon Panier", expanded=False):
+        if not st.session_state.cart:
+            st.write("Le panier est vide.")
+        else:
+            total_p = 0
+            for p_name, details in list(st.session_state.cart.items()):
+                cp1, cp2 = st.columns([3, 1])
+                cp1.caption(f"{p_name} (x{details['qty']})")
+                if cp2.button("❌", key=f"del_h_{p_name}"):
+                    del st.session_state.cart[p_name]
+                    st.rerun()
+                total_p += details['qty'] * details['price']
+            st.write(f"**Total : {total_p} DA**")
+            st.link_button("🚀 Commander WhatsApp", f"https://wa.me/?text={urllib.parse.quote('Bonjour, je souhaite commander...')}", use_container_width=True)
+
+    with col_f3.expander("🎨 Personnalisation", expanded=False):
+        new_theme = st.selectbox("Ambiance", 
+                                ["Clair Modern ❄️", "Sombre Élite 🌙", "Émeraude Royal 👑", "Aurore Boréale 🌌", "Cyberpunk ⚡"], 
+                                index=["Clair Modern ❄️", "Sombre Élite 🌙", "Émeraude Royal 👑", "Aurore Boréale 🌌", "Cyberpunk ⚡"].index(st.session_state.theme))
+        if new_theme != st.session_state.theme:
+            st.session_state.theme = new_theme
+            st.rerun()
+            
+    st.divider()
+    return menu_choice, f_famille, f_labo, f_alerte
 
 apply_custom_theme(st.session_state.theme)
 
@@ -476,62 +523,14 @@ def login():
         st.stop()
 
 # --- 4. INTERFACE ---
-login()
-
-df_para = load_data()
-st.sidebar.title(f"👤 {st.session_state.current_user}")
-if st.session_state.user_role != "Client":
-    st.sidebar.write(f"Rôle : **{st.session_state.user_role}**")
-
-st.sidebar.divider()
-
-# --- FILTRES DE NAVIGATION ---
-with st.sidebar.expander("🎯 Filtres & Recherche", expanded=True):
-    f_famille = st.selectbox("Famille", ["Toutes"] + sorted([f for f in df_para['Famille'].unique() if f]))
-    f_labo = st.selectbox("Laboratoire", ["Tous"] + sorted([l for l in df_para['Laboratoire'].unique() if l]))
-    f_alerte = st.selectbox("Alertes Stock/DDP", ["Aucune", "Stock Bas (<5)", "Péremption Proche"])
-
+# --- 4. NAVIGATION ---
 if st.session_state.user_role == "Client":
     nav_options = ["📦 Catalogue", "🛒 Mon Panier"]
 else:
     nav_options = ["📦 Stock & Catalogue", "🛒 Commandes Client", "📊 Statistiques"]
     if st.session_state.user_role == "Responsable": nav_options.append("⚙️ Admin")
 
-menu = st.sidebar.radio("Navigation", nav_options)
-
-# --- PANIER (SIDEBAR) ---
-if st.session_state.cart:
-    st.sidebar.divider()
-    st.sidebar.subheader("🛒 Votre Panier")
-    total_panier = 0
-    items_to_remove = []
-    for p_name, details in st.session_state.cart.items():
-        c_p1, c_p2 = st.sidebar.columns([3, 1])
-        # Petit champ numérique pour la sidebar
-        c_p1.number_input(f"{p_name} ({details['price']} DA)", min_value=1, value=details['qty'], key=f"q_side_{p_name}", on_change=update_cart_qty, args=(p_name, f"q_side_{p_name}"))
-        
-        if c_p2.button("❌", key=f"del_{p_name}"):
-            items_to_remove.append(p_name)
-        total_panier += details['qty'] * details['price']
-    
-    for item in items_to_remove:
-        del st.session_state.cart[item]
-        st.rerun()
-        
-    st.sidebar.write(f"**Total : {total_panier} DA**")
-    
-    msg_cart = f"Bonjour Pharmaciel, je souhaite commander :\n" + "\n".join([f"- {k} (x{v['qty']})" for k,v in st.session_state.cart.items()])
-    st.sidebar.link_button("🚀 Envoyer Commande WhatsApp", f"https://wa.me/?text={urllib.parse.quote(msg_cart)}", use_container_width=True)
-    if st.sidebar.button("🗑️ Vider le panier", use_container_width=True):
-        st.session_state.cart = {}
-        st.rerun()
-
-st.sidebar.divider()
-if st.sidebar.button("🚪 Déconnexion", type="secondary", use_container_width=True):
-    st.session_state.auth = False
-    st.session_state.user_role = None
-    st.session_state.current_user = None
-    st.rerun()
+menu, f_famille, f_labo, f_alerte = render_header(nav_options)
 
 # --- DIALOGUE DÉTAILS ---
 @st.dialog("Fiche Produit", width="large")
