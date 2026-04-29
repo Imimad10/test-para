@@ -261,17 +261,17 @@ def apply_custom_theme(theme_choice):
              justify-content: space-between;
         }}
 
-        /* Catalog Grid: Fixed height only for images in bordered containers */
-        div.stVerticalBlockBorderContainer img {{
+        /* Default for Catalog: Force uniform height */
+        [data-testid="column"] img {{
             height: 180px !important;
             object-fit: contain !important;
-            width: 100% !important;
         }}
 
-        /* Detail View (Dialog): Full size allowed */
-        div[data-testid="stDialog"] img {{
+        /* EXCEPTION for Dialogs (Details): Allow full size */
+        [data-testid="stDialog"] img, 
+        [data-testid="stDialog"] [data-testid="column"] img {{
             height: auto !important;
-            max-height: 80vh !important; /* Limite à la hauteur de l'écran */
+            max-height: 80vh !important;
             width: auto !important;
             max-width: 100% !important;
             object-fit: scale-down !important;
