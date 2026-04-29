@@ -19,7 +19,9 @@ IMG_DIR = os.path.join(BASE_DIR, 'images_stock')
 DB_PATH = os.path.join(BASE_DIR, 'database_para.csv')
 USER_DB = os.path.join(BASE_DIR, 'users.csv')
 SALES_DB = os.path.join(BASE_DIR, 'ventes.csv')
+LOGS_FILE = os.path.join(BASE_DIR, 'activity_logs.csv')
 SETTINGS_FILE = os.path.join(BASE_DIR, 'settings.json')
+SESSION_FILE = os.path.join(BASE_DIR, 'session.json')
 
 if not os.path.exists(IMG_DIR): os.makedirs(IMG_DIR)
 
@@ -33,6 +35,15 @@ def load_settings():
 def save_settings(settings):
     with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
         json.dump(settings, f, ensure_ascii=False, indent=4)
+
+def add_log(action, details=""):
+    user = st.session_state.get('current_user', 'Système')
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    new_log = pd.DataFrame([{"Date": now, "Utilisateur": user, "Action": action, "Détails": details}])
+    if os.path.exists(LOGS_FILE):
+        new_log.to_csv(LOGS_FILE, mode='a', header=False, index=False, encoding='utf-8-sig')
+    else:
+        new_log.to_csv(LOGS_FILE, index=False, encoding='utf-8-sig')
 
 # --- 2. CONFIGURATION DE PAGE ---
 st.set_page_config(page_title="Pharmaciel Pro", layout="wide", page_icon="💊")
@@ -364,6 +375,7 @@ def load_users():
 def save_data(df, path=DB_PATH):
     df.to_csv(path, index=False, encoding='utf-8-sig')
     st.cache_data.clear()
+    add_log("Mise à jour Base de données", f"Fichier: {os.path.basename(path)}")
 
 def update_cart_qty(p_name, key):
     if key in st.session_state:
@@ -460,30 +472,47 @@ def generate_invoice(cart_dict, total_val):
 def login():
     if 'auth' not in st.session_state: st.session_state.auth = False
     if 'cart' not in st.session_state: st.session_state.cart = {}
+    
+    # Tentative de reconnexion automatique
+    if not st.session_state.auth and os.path.exists(SESSION_FILE):
+        try:
+            with open(SESSION_FILE, 'r') as f:
+                sess = json.load(f)
+                st.session_state.auth = True
+                st.session_state.user_role = sess['role']
+                st.session_state.current_user = sess['user']
+                add_log("Connexion Automatique")
+        except: pass
+
     if not st.session_state.auth:
         st.title("🔐 Pharmaciel Pro")
-        
-        # SECTION CLIENT (Très visible)
         st.success("👋 Vous êtes client ? Accédez directement à notre catalogue sans identifiant.")
         if st.button("🌐 VOIR LE CATALOGUE PRODUITS", type="primary", use_container_width=True):
             st.session_state.auth, st.session_state.user_role, st.session_state.current_user = True, "Client", "Visiteur"
+            add_log("Accès Visiteur")
             st.rerun()
         
         st.divider()
-        
-        # SECTION CONNEXION (Staff)
         with st.expander("🔑 Espace Collaborateur (Connexion)", expanded=False):
             with st.form("login_form"):
                 u = st.text_input("Identifiant")
                 p = st.text_input("Mot de passe", type="password")
+                remember = st.checkbox("Rester connecté")
                 if st.form_submit_button("Se connecter"):
+                    role = None
                     if u == "admin" and p == "1992":
-                        st.session_state.auth, st.session_state.user_role, st.session_state.current_user = True, "Responsable", "Admin Suprême"
-                        st.rerun()
-                    users = load_users()
-                    match = users[(users['user'] == u) & (users['pw'].astype(str) == p)]
-                    if not match.empty:
-                        st.session_state.auth, st.session_state.user_role, st.session_state.current_user = True, match['role'].values[0], u
+                        role, user_name = "Responsable", "Admin Suprême"
+                    else:
+                        users = load_users()
+                        match = users[(users['user'] == u) & (users['pw'].astype(str) == p)]
+                        if not match.empty:
+                            role, user_name = match['role'].values[0], u
+                    
+                    if role:
+                        st.session_state.auth, st.session_state.user_role, st.session_state.current_user = True, role, user_name
+                        if remember:
+                            with open(SESSION_FILE, 'w') as f: json.dump({"user": user_name, "role": role}, f)
+                        add_log("Connexion Manuelle")
                         st.rerun()
                     else: st.error("Identifiants incorrects.")
         st.stop()
@@ -746,7 +775,19 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
                             count += 1
                     save_data(df_para)
                     st.success(f"✅ {count} images liées automatiquement !")
+                    add_log("Import Groupé Images", f"{count} images")
                     st.rerun()
+            
+            st.divider()
+            if st.button("🧹 Optimiseur : Supprimer les images inutilisées"):
+                files_in_dir = set(os.listdir(IMG_DIR))
+                files_in_db = set(df_para['image_path'].dropna().unique())
+                to_delete = files_in_dir - files_in_db
+                for f in to_delete:
+                    try: os.remove(os.path.join(IMG_DIR, f))
+                    except: pass
+                st.success(f"Nettoyage terminé : {len(to_delete)} fichiers supprimés.")
+                add_log("Nettoyage Visuels", f"{len(to_delete)} fichiers")
 
     if "🔄 Sync Excel" in t_tabs_names:
         with tabs[t_tabs_names.index("🔄 Sync Excel")]:
