@@ -695,7 +695,7 @@ def show_details(row):
                         try:
                             api_key = api_key.strip()
                             genai.configure(api_key=api_key)
-                            model = genai.GenerativeModel('gemini-1.5-flash')
+                            
                             prompt = f"""
                             Tu es un expert en parapharmacie pour le magasin 'Pharmaciel'. 
                             Aide le client pour le produit suivant :
@@ -708,8 +708,20 @@ def show_details(row):
                             
                             Réponds de manière professionnelle, rassurante et précise. Si tu ne connais pas le produit, donne des conseils généraux basés sur sa famille ({row['Famille']}).
                             """
-                            response = model.generate_content(prompt)
-                            r = response.text
+                            
+                            # Tentative avec le modèle le plus récent
+                            try:
+                                model = genai.GenerativeModel('gemini-1.5-flash')
+                                response = model.generate_content(prompt)
+                                r = response.text
+                            except Exception as e1:
+                                # Repli sur le modèle le plus stable/compatible si 404
+                                if "404" in str(e1) or "not found" in str(e1).lower():
+                                    model = genai.GenerativeModel('gemini-1.0-pro')
+                                    response = model.generate_content(prompt)
+                                    r = response.text
+                                else:
+                                    raise e1
                         except Exception as e:
                             r = f"Erreur IA : {str(e)} (Vérifiez votre clé API dans l'onglet Admin)."
                     else:
