@@ -253,18 +253,25 @@ def apply_custom_theme(theme_choice):
             text-shadow: 0 0 10px rgba(0,0,0,0.2);
         }}
         
-        /* Fixed Height Cards for Grid */
-        div[data-testid="stVerticalBlock"] > div > div > div > div.stColumn > div {{
+        /* Fixed Height Cards for Grid only (exclude dialogs) */
+        div[data-testid="stVerticalBlock"] > div > div > div > div.stColumn > div:not([data-testid="stDialog"]) {{
              min-height: 420px !important;
              display: flex;
              flex-direction: column;
              justify-content: space-between;
         }}
 
-        .stImage img {{
-            height: 180px !important;
+        /* Apply fixed height ONLY to catalog images, not detail view */
+        div[data-testid="column"] img {{
+            max-height: 180px !important;
             object-fit: contain !important;
-            background: transparent !important;
+        }}
+        
+        /* Reset for Dialog Images */
+        div[data-testid="stDialog"] img {{
+            max-height: 100% !important;
+            height: auto !important;
+            width: auto !important;
         }}
 
         /* Headers */
@@ -668,7 +675,7 @@ def show_details(row):
     c1, c2 = st.columns(2)
     img = get_image_base64(row['image_path'])
     with c1:
-        if img: st.image(img, use_container_width=True)
+        if img: st.image(img)
         else: st.warning("Image manquante")
     with c2:
         st.header(row['Produit'])
