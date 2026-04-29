@@ -523,6 +523,9 @@ def login():
         st.stop()
 
 # --- 4. INTERFACE ---
+login()
+df_para = load_data()
+
 # --- 4. NAVIGATION ---
 if st.session_state.user_role == "Client":
     nav_options = ["📦 Catalogue", "🛒 Mon Panier"]
