@@ -686,7 +686,8 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
                                     st.toast(f"Ajouté : {row['Produit']}")
                                     st.rerun()
 
-    with tabs[1]: # Images & Web
+    if "🖼️ Images & Web" in t_tabs_names:
+        with tabs[t_tabs_names.index("🖼️ Images & Web")]:
         st.subheader("🖼️ Gestion des visuels")
         
         mode_img = st.radio("Mode d'ajout", ["Un par un", "⚡ Importation Groupée (Rapide)"], horizontal=True)
@@ -744,7 +745,8 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
                 st.success(f"✅ {count} images liées automatiquement !")
                 st.rerun()
 
-    with tabs[2]: # 🔄 SYNC EXCEL
+    if "🔄 Sync Excel" in t_tabs_names:
+        with tabs[t_tabs_names.index("🔄 Sync Excel")]:
         st.subheader("🔄 Synchronisation Base de Données")
         st.info("Importez votre fichier Excel (format Dépôt, Produit, Quantité Dépot, DDP, PPA, Labo, Arrivage).")
         
@@ -813,7 +815,7 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
                 st.error(f"❌ Erreur lors de l'import : {e}")
 
     if "➕ Ajout" in t_tabs_names:
-        with tabs[3]: # Ajout Manuel
+        with tabs[t_tabs_names.index("➕ Ajout")]:
             with st.form("add_p"):
                 c_a1, c_a2 = st.columns(2)
                 n = c_a1.text_input("Désignation")
@@ -831,7 +833,8 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
                     st.success(f"Produit {n} ajouté !")
                     st.rerun()
 
-        with tabs[4]: # Gestion du Stock (Modif/Suppr)
+    if "✏️ Modif/Suppr" in t_tabs_names:
+        with tabs[t_tabs_names.index("✏️ Modif/Suppr")]:
             st.subheader("⚙️ Gestion & Modification")
             target = st.selectbox("Sélectionner un produit à modifier", sorted(df_para['Produit'].unique()))
             
