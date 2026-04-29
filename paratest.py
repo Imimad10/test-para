@@ -709,8 +709,8 @@ def show_details(row):
                             """
                             response = model.generate_content(prompt)
                             r = response.text
-                        except:
-                            r = f"Désolé, une erreur technique est survenue avec l'IA. (Vérifiez votre clé API dans l'onglet Admin)."
+                        except Exception as e:
+                            r = f"Erreur IA : {str(e)} (Vérifiez votre clé API dans l'onglet Admin)."
                     else:
                         # Logique de secours améliorée
                         u_q = user_q.lower()
