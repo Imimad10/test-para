@@ -697,131 +697,110 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
 
     if "🖼️ Images & Web" in t_tabs_names:
         with tabs[t_tabs_names.index("🖼️ Images & Web")]:
-        st.subheader("🖼️ Gestion des visuels")
-        
-        mode_img = st.radio("Mode d'ajout", ["Un par un", "⚡ Importation Groupée (Rapide)"], horizontal=True)
-        
-        if mode_img == "Un par un":
-            df_sans_image = df_para[
-                (df_para['image_path'].isna()) | 
-                (df_para['image_path'] == "") | 
-                (df_para['image_path'].str.len() < 3)
-            ]
+            st.subheader("🖼️ Gestion des visuels")
             
-            if df_sans_image.empty:
-                st.success("🎉 Tous les produits ont déjà une photo !")
-            else:
-                liste_produits = sorted(df_sans_image['Produit'].unique())
-                sel_prod = st.selectbox("Sélectionner un produit", liste_produits)
-                
-                c1, c2 = st.columns(2)
-                with c1:
-                    uploaded_file = st.file_uploader("Charger une photo", type=['png', 'jpg', 'jpeg'], key="single_up")
-                    if uploaded_file and st.button("💾 Lier cette image"):
-                        fname = f"{clean_filename(sel_prod)}.{uploaded_file.name.split('.')[-1]}"
-                        with open(os.path.join(IMG_DIR, fname), "wb") as f: f.write(uploaded_file.getbuffer())
-                        df_para.loc[df_para['Produit'] == sel_prod, 'image_path'] = fname
-                        save_data(df_para)
-                        st.success(f"Image liée à {sel_prod}")
-                        st.rerun()
-                with c2:
-                    st.info("Recherche rapide")
-                    st.link_button("🌐 Chercher sur Google Images", f"https://www.google.com/search?tbm=isch&q={sel_prod.replace(' ','+')}")
-        
-        else: # IMPORT GROUPÉ
-            st.info("💡 **Astuce** : Nommez vos images exactement comme vos produits (ex: `DOLIPRANE.jpg`). Le système les liera automatiquement !")
-            bulk_files = st.file_uploader("Glissez toutes vos images ici", type=['png', 'jpg', 'jpeg'], accept_multiple_files=True)
+            mode_img = st.radio("Mode d'ajout", ["Un par un", "⚡ Importation Groupée (Rapide)"], horizontal=True)
             
-            if bulk_files and st.button(f"🚀 Lier {len(bulk_files)} images"):
-                count = 0
-                for f in bulk_files:
-                    # On cherche le produit qui correspond au nom du fichier (sans extension)
-                    prod_name_guess = f.name.split('.')[0].upper().replace('_', ' ')
-                    # On nettoie pour comparer
-                    clean_guess = clean_filename(prod_name_guess)
-                    
-                    # On cherche dans le DF
-                    # On peut aussi simplement lier si le produit existe
-                    match = df_para[df_para['Produit'].apply(clean_filename) == clean_guess]
-                    
-                    if not match.empty:
-                        fname = f"{clean_guess}.{f.name.split('.')[-1]}"
-                        with open(os.path.join(IMG_DIR, fname), "wb") as out: out.write(f.getbuffer())
-                        df_para.loc[df_para['Produit'].apply(clean_filename) == clean_guess, 'image_path'] = fname
-                        count += 1
+            if mode_img == "Un par un":
+                df_sans_image = df_para[
+                    (df_para['image_path'].isna()) | 
+                    (df_para['image_path'] == "") | 
+                    (df_para['image_path'].str.len() < 3)
+                ]
                 
-                save_data(df_para)
-                st.success(f"✅ {count} images liées automatiquement !")
-                st.rerun()
+                if df_sans_image.empty:
+                    st.success("🎉 Tous les produits ont déjà une photo !")
+                else:
+                    liste_produits = sorted(df_sans_image['Produit'].unique())
+                    sel_prod = st.selectbox("Sélectionner un produit", liste_produits)
+                    
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        uploaded_file = st.file_uploader("Charger une photo", type=['png', 'jpg', 'jpeg'], key="single_up")
+                        if uploaded_file and st.button("💾 Lier cette image"):
+                            fname = f"{clean_filename(sel_prod)}.{uploaded_file.name.split('.')[-1]}"
+                            with open(os.path.join(IMG_DIR, fname), "wb") as f: f.write(uploaded_file.getbuffer())
+                            df_para.loc[df_para['Produit'] == sel_prod, 'image_path'] = fname
+                            save_data(df_para)
+                            st.success(f"Image liée à {sel_prod}")
+                            st.rerun()
+                    with c2:
+                        st.info("Recherche rapide")
+                        st.link_button("🌐 Chercher sur Google Images", f"https://www.google.com/search?tbm=isch&q={sel_prod.replace(' ','+')}")
+            
+            else: # IMPORT GROUPÉ
+                st.info("💡 **Astuce** : Nommez vos images exactement comme vos produits (ex: `DOLIPRANE.jpg`). Le système les liera automatiquement !")
+                bulk_files = st.file_uploader("Glissez toutes vos images ici", type=['png', 'jpg', 'jpeg'], accept_multiple_files=True)
+                
+                if bulk_files and st.button(f"🚀 Lier {len(bulk_files)} images"):
+                    count = 0
+                    for f in bulk_files:
+                        prod_name_guess = f.name.split('.')[0].upper().replace('_', ' ')
+                        clean_guess = clean_filename(prod_name_guess)
+                        match = df_para[df_para['Produit'].apply(clean_filename) == clean_guess]
+                        if not match.empty:
+                            fname = f"{clean_guess}.{f.name.split('.')[-1]}"
+                            with open(os.path.join(IMG_DIR, fname), "wb") as out: out.write(f.getbuffer())
+                            df_para.loc[df_para['Produit'].apply(clean_filename) == clean_guess, 'image_path'] = fname
+                            count += 1
+                    save_data(df_para)
+                    st.success(f"✅ {count} images liées automatiquement !")
+                    st.rerun()
 
     if "🔄 Sync Excel" in t_tabs_names:
         with tabs[t_tabs_names.index("🔄 Sync Excel")]:
-        st.subheader("🔄 Synchronisation Base de Données")
-        st.info("Importez votre fichier Excel (format Dépôt, Produit, Quantité Dépot, DDP, PPA, Labo, Arrivage).")
-        
-        up_excel = st.file_uploader("Choisir le fichier Excel/CSV", type=['xlsx', 'csv'])
-        if up_excel:
-            try:
-                if up_excel.name.endswith('.xlsx'):
-                    # Tentative de lecture intelligente (cherche la feuille contenant des données)
-                    xl = pd.ExcelFile(up_excel)
-                    df_new = pd.read_excel(up_excel, sheet_name=0)
+            st.subheader("🔄 Synchronisation Base de Données")
+            st.info("Importez votre fichier Excel (format Dépôt, Produit, Quantité Dépot, DDP, PPA, Labo, Arrivage).")
+            
+            up_excel = st.file_uploader("Choisir le fichier Excel/CSV", type=['xlsx', 'csv'])
+            if up_excel:
+                try:
+                    if up_excel.name.endswith('.xlsx'):
+                        xl = pd.ExcelFile(up_excel)
+                        df_new = pd.read_excel(up_excel, sheet_name=0)
+                        if df_new.empty or 'Produit' not in df_new.columns:
+                            for sheet in xl.sheet_names:
+                                temp_df = pd.read_excel(up_excel, sheet_name=sheet)
+                                if 'Produit' in temp_df.columns:
+                                    df_new = temp_df
+                                    break
+                    else:
+                        df_new = pd.read_csv(up_excel)
                     
-                    # Si la première feuille semble vide ou incorrecte, on cherche dans les autres
-                    if df_new.empty or 'Produit' not in df_new.columns:
-                        for sheet in xl.sheet_names:
-                            temp_df = pd.read_excel(up_excel, sheet_name=sheet)
-                            if 'Produit' in temp_df.columns:
-                                df_new = temp_df
-                                break
-                else:
-                    df_new = pd.read_csv(up_excel)
-                
-                # NETTOYAGE : Supprimer les lignes vides ou sans nom de produit
-                if 'Produit' in df_new.columns:
-                    df_new = df_new.dropna(subset=['Produit'])
-                
-                st.write("🔍 Aperçu des données détectées :", df_new.head(5))
-                
-                if df_new.empty:
-                    st.warning("⚠️ Aucune donnée valide trouvée. Vérifiez que la colonne 'Produit' existe et n'est pas vide.")
-                
-                if st.button("🚀 Lancer la Synchronisation", disabled=df_new.empty):
-                    # Normalisation des noms de colonnes
-                    df_new = df_new.rename(columns={
-                        'Quantité  Dépot': 'Quantité', 
-                        'Quantité Dépot': 'Quantité',
-                        'Quantité Dépôt': 'Quantité',
-                        'Fournisseur': 'Famille',
-                        'Labo': 'Laboratoire',
-                        'Prix': 'PPA'
-                    })
+                    if 'Produit' in df_new.columns:
+                        df_new = df_new.dropna(subset=['Produit'])
                     
-                    df_new['Produit'] = df_new['Produit'].astype(str).str.upper().str.strip()
+                    st.write("🔍 Aperçu des données détectées :", df_new.head(5))
                     
-                    # Nettoyage PPA (gestion du format "DZD 1,780.00")
-                    if 'PPA' in df_new.columns:
-                        df_new['PPA'] = df_new['PPA'].astype(str).str.replace('DZD', '', regex=False).str.replace(',', '', regex=False).str.strip()
-                        df_new['PPA'] = pd.to_numeric(df_new['PPA'], errors='coerce').fillna(0)
+                    if df_new.empty:
+                        st.warning("⚠️ Aucune donnée valide trouvée. Vérifiez que la colonne 'Produit' existe et n'est pas vide.")
+                    
+                    if st.button("🚀 Lancer la Synchronisation", disabled=df_new.empty):
+                        df_new = df_new.rename(columns={
+                            'Quantité  Dépot': 'Quantité', 'Quantité Dépot': 'Quantité', 'Quantité Dépôt': 'Quantité',
+                            'Fournisseur': 'Famille', 'Labo': 'Laboratoire', 'Prix': 'PPA'
+                        })
+                        df_new['Produit'] = df_new['Produit'].astype(str).str.upper().str.strip()
+                        if 'PPA' in df_new.columns:
+                            df_new['PPA'] = df_new['PPA'].astype(str).str.replace('DZD', '', regex=False).str.replace(',', '', regex=False).str.strip()
+                            df_new['PPA'] = pd.to_numeric(df_new['PPA'], errors='coerce').fillna(0)
 
-                    # On fusionne avec les images existantes pour ne pas les perdre
-                    df_img = df_para[['Produit', 'image_path']].drop_duplicates('Produit')
-                    merged = pd.merge(df_new, df_img, on='Produit', how='left')
-                    merged['image_path'] = merged['image_path'].fillna("")
-                    
-                    # S'assurer que toutes les colonnes requises existent
-                    required_cols = ['Promo', 'Prix_Achat', 'Description', 'Famille', 'Laboratoire', 'DDP', 'Dépôt', 'Arrivage', 'PPA']
-                    for c in required_cols:
-                        if c not in merged.columns:
-                            if c == 'Promo': merged[c] = False
-                            elif c in ['Prix_Achat', 'PPA']: merged[c] = 0
-                            else: merged[c] = ""
-                    
-                    save_data(merged)
-                    st.success("✅ Synchronisation terminée avec succès !")
-                    st.rerun()
-            except Exception as e:
-                st.error(f"❌ Erreur lors de l'import : {e}")
+                        df_img = df_para[['Produit', 'image_path']].drop_duplicates('Produit')
+                        merged = pd.merge(df_new, df_img, on='Produit', how='left')
+                        merged['image_path'] = merged['image_path'].fillna("")
+                        
+                        required_cols = ['Promo', 'Prix_Achat', 'Description', 'Famille', 'Laboratoire', 'DDP', 'Dépôt', 'Arrivage', 'PPA']
+                        for c in required_cols:
+                            if c not in merged.columns:
+                                if c == 'Promo': merged[c] = False
+                                elif c in ['Prix_Achat', 'PPA']: merged[c] = 0
+                                else: merged[c] = ""
+                        
+                        save_data(merged)
+                        st.success("✅ Synchronisation terminée avec succès !")
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Erreur lors de l'import : {e}")
 
     if "➕ Ajout" in t_tabs_names:
         with tabs[t_tabs_names.index("➕ Ajout")]:
