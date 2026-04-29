@@ -250,6 +250,19 @@ def apply_custom_theme(theme_choice):
         .stMarkdown p {{
             color: {t['text']} !important;
         }}
+        
+        /* Custom PDF Button */
+        div.stDownloadButton > button {{
+            background-color: #e63946 !important;
+            color: white !important;
+            border: none !important;
+        }}
+        
+        /* Toggle Styling */
+        div[data-testid="stToggle"] p {{
+            color: {t['primary']} !important;
+            font-weight: 600 !important;
+        }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -768,7 +781,8 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
                         'Quantité Dépot': 'Quantité',
                         'Quantité Dépôt': 'Quantité',
                         'Fournisseur': 'Famille',
-                        'Labo': 'Laboratoire'
+                        'Labo': 'Laboratoire',
+                        'Prix': 'PPA'
                     })
                     
                     df_new['Produit'] = df_new['Produit'].astype(str).str.upper().str.strip()
@@ -784,10 +798,11 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
                     merged['image_path'] = merged['image_path'].fillna("")
                     
                     # S'assurer que toutes les colonnes requises existent
-                    for c in ['Promo', 'Prix_Achat', 'Description', 'Famille', 'Laboratoire', 'DDP', 'Dépôt', 'Arrivage']:
+                    required_cols = ['Promo', 'Prix_Achat', 'Description', 'Famille', 'Laboratoire', 'DDP', 'Dépôt', 'Arrivage', 'PPA']
+                    for c in required_cols:
                         if c not in merged.columns:
                             if c == 'Promo': merged[c] = False
-                            elif c == 'Prix_Achat': merged[c] = 0
+                            elif c in ['Prix_Achat', 'PPA']: merged[c] = 0
                             else: merged[c] = ""
                     
                     save_data(merged)
