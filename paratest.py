@@ -619,36 +619,58 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
         if hide: filt = filt[filt['image_path'].str.len() > 3]
         
         if filt.empty: st.warning("Aucun produit ne correspond à ces critères.")
-        
-        for i in range(0, len(filt), 4):
-            cols = st.columns(4)
-            for j in range(4):
-                if i+j < len(filt):
-                    row = filt.iloc[i+j]
-                    with cols[j]:
-                        with st.container(border=True):
-                            img = get_image_base64(row['image_path'])
-                            if img: st.image(img, use_container_width=True)
-                            
-                            # Badges
-                            badge_cols = st.columns(2)
-                            if st.session_state.user_role != "Client" and row['Quantité'] < 5: 
-                                badge_cols[0].caption("🔴 Stock Faible")
-                            if row['Promo']: badge_cols[1].markdown("🔥 **PROMO**")
-                            
-                            st.markdown(f"**{row['Produit']}**")
-                            p_disp = f"{row['PPA']} DA" if row['PPA'] > 0 else "Prix sur demande"
-                            st.markdown(f"### {p_disp}")
-                            
-                            c_b1, c_b2 = st.columns(2)
-                            if c_b1.button("Détails", key=f"v_{i+j}", use_container_width=True): show_details(row)
-                            if c_b2.button("🛒", key=f"add_{i+j}", use_container_width=True):
-                                if row['Produit'] in st.session_state.cart:
-                                    st.session_state.cart[row['Produit']]['qty'] += 1
-                                else:
-                                    st.session_state.cart[row['Produit']] = {'price': row['PPA'], 'qty': 1}
-                                st.toast(f"Ajouté : {row['Produit']}")
-                                st.rerun()
+        else:
+            # --- PAGINATION ---
+            items_per_page = 12
+            num_pages = max(1, (len(filt) - 1) // items_per_page + 1)
+            
+            if 'page' not in st.session_state: st.session_state.page = 1
+            if st.session_state.page > num_pages: st.session_state.page = 1
+            
+            col_page_1, col_page_2, col_page_3 = st.columns([1, 3, 1])
+            if col_page_1.button("⬅️ Précédent", disabled=st.session_state.page <= 1, use_container_width=True):
+                st.session_state.page -= 1
+                st.rerun()
+            
+            col_page_2.markdown(f"<p style='text-align:center;'>Page <b>{st.session_state.page}</b> / {num_pages} ({len(filt)} produits)</p>", unsafe_allow_html=True)
+            
+            if col_page_3.button("Suivant ➡️", disabled=st.session_state.page >= num_pages, use_container_width=True):
+                st.session_state.page += 1
+                st.rerun()
+                
+            start_idx = (st.session_state.page - 1) * items_per_page
+            end_idx = start_idx + items_per_page
+            page_items = filt.iloc[start_idx:end_idx]
+            
+            for i in range(0, len(page_items), 4):
+                cols = st.columns(4)
+                for j in range(4):
+                    if i+j < len(page_items):
+                        row = page_items.iloc[i+j]
+                        with cols[j]:
+                            with st.container(border=True):
+                                img = get_image_base64(row['image_path'])
+                                if img: st.image(img, use_container_width=True)
+                                
+                                # Badges
+                                badge_cols = st.columns(2)
+                                if st.session_state.user_role != "Client" and row['Quantité'] < 5: 
+                                    badge_cols[0].caption("🔴 Stock Faible")
+                                if row['Promo']: badge_cols[1].markdown("🔥 **PROMO**")
+                                
+                                st.markdown(f"**{row['Produit']}**")
+                                p_disp = f"{row['PPA']} DA" if row['PPA'] > 0 else "Prix sur demande"
+                                st.markdown(f"### {p_disp}")
+                                
+                                c_b1, c_b2 = st.columns(2)
+                                if c_b1.button("Détails", key=f"v_{start_idx+i+j}", use_container_width=True): show_details(row)
+                                if c_b2.button("🛒", key=f"add_{start_idx+i+j}", use_container_width=True):
+                                    if row['Produit'] in st.session_state.cart:
+                                        st.session_state.cart[row['Produit']]['qty'] += 1
+                                    else:
+                                        st.session_state.cart[row['Produit']] = {'price': row['PPA'], 'qty': 1}
+                                    st.toast(f"Ajouté : {row['Produit']}")
+                                    st.rerun()
 
     with tabs[1]: # Images & Web
         st.subheader("🖼️ Gestion des visuels")
