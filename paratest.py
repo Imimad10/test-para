@@ -109,9 +109,9 @@ def apply_custom_theme(theme_choice):
         
         {".stApp { font-family: 'Orbitron', sans-serif !important; }" if theme_choice == "Cyberpunk ⚡" else ""}
 
-        .stApp {{
-            background: {t['bg']};
-            background-attachment: fixed;
+        .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {{
+            background: {t['bg']} !important;
+            background-attachment: fixed !important;
             color: {t['text']} !important;
         }}
         
@@ -271,6 +271,8 @@ settings = load_settings()
 if 'theme' not in st.session_state:
     st.session_state.theme = "Émeraude Royal 👑"
 
+apply_custom_theme(st.session_state.theme)
+
 # Affichage du Marquee Dynamique
 st.markdown(f"""
 <div class="marquee">
@@ -335,7 +337,6 @@ def render_header(nav_options):
     st.divider()
     return menu_choice, f_famille, f_labo, f_alerte
 
-apply_custom_theme(st.session_state.theme)
 
 # --- 3. FONCTIONS TECHNIQUES ---
 
