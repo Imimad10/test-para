@@ -468,6 +468,53 @@ def generate_invoice(cart_dict, total_val):
     buffer.seek(0)
     return buffer
 
+def generate_promo_flyer(df):
+    df_promo = df[df['Promo'] == True]
+    if df_promo.empty: return None
+    
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=30, rightMargin=30, topMargin=30, bottomMargin=30)
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    title_style = styles['Title']
+    title_style.textColor = colors.red
+    title_style.fontSize = 24
+    
+    elements.append(Paragraph(f"<b>🔥 OFFRES SPÉCIALES PROMO 🔥</b>", title_style))
+    elements.append(Paragraph(f"PHARMACIEL PRO - Profitez de nos meilleures remises !", styles['Normal']))
+    elements.append(Spacer(1, 10))
+    elements.append(Paragraph(f"Date : {datetime.now().strftime('%d/%m/%Y')}", styles['Normal']))
+    elements.append(Spacer(1, 20))
+    
+    style_p = styles["Normal"]
+    style_p.fontSize = 11
+    
+    data = [[Paragraph("<b>Produit</b>", style_p), Paragraph("<b>Laboratoire</b>", style_p), Paragraph("<b>Prix PROMO</b>", style_p)]]
+    for _, row in df_promo.iterrows():
+        p_name = Paragraph(f"<b>{row['Produit']}</b>", style_p)
+        p_lab = Paragraph(str(row['Laboratoire']), style_p)
+        p_price = Paragraph(f"<font color='red' size=12><b>{row['PPA']} DA</b></font>", style_p)
+        data.append([p_name, p_lab, p_price])
+        
+    t = Table(data, colWidths=[250, 150, 100])
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.red),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+        ('GRID', (0,0), (-1,-1), 1, colors.red),
+        ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+        ('TOPPADDING', (0,0), (-1,-1), 8),
+    ]))
+    elements.append(t)
+    elements.append(Spacer(1, 30))
+    elements.append(Paragraph("<i>* Offres valables dans la limite des stocks disponibles.</i>", styles['Normal']))
+    
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
+
 # --- 3. AUTHENTIFICATION ---
 def login():
     if 'auth' not in st.session_state: st.session_state.auth = False
@@ -548,6 +595,12 @@ with st.sidebar:
         st.divider()
         pdf_buf = generate_pdf_catalogue(df_para)
         st.download_button("📄 PDF Catalogue", pdf_buf, "Catalogue_Pharmaciel.pdf", "application/pdf", use_container_width=True)
+        
+        # Bouton Flyer Promo
+        promo_df = df_para[df_para['Promo'] == True]
+        if not promo_df.empty:
+            promo_buf = generate_promo_flyer(df_para)
+            st.download_button("🔥 Télécharger Flyer PROMO", promo_buf, "Promotions_Pharmaciel.pdf", "application/pdf", use_container_width=True)
 
     st.divider()
 
