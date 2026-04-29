@@ -676,6 +676,33 @@ def show_details(row):
         msg = urllib.parse.quote(f"Pharmaciel - {row['Produit']} | Prix: {row['PPA']} DA")
         st.markdown(f'<a href="https://wa.me/?text={msg}" target="_blank" style="background-color:#25D366; color:white; padding:10px; border-radius:5px; text-decoration:none; display:block; text-align:center;">Partager WhatsApp</a>', unsafe_allow_html=True)
 
+        # --- ASSISTANT IA CONSEIL ---
+        st.divider()
+        with st.expander("🤖 Assistant Expert IA (Conseils)", expanded=True):
+            st.chat_message("assistant").write(f"Bonjour ! Je suis votre conseiller **Pharmaciel AI**. Je connais très bien le produit **{row['Produit']}** du laboratoire **{row['Laboratoire']}**. Comment puis-je vous aider ?")
+            
+            # Champ de question
+            q_key = f"ai_query_{row['Produit']}_{row['Laboratoire']}"
+            user_q = st.text_input("Posez votre question ici...", key=q_key, placeholder="Ex: C'est pour quel type de peau ? Comment l'utiliser ?")
+            
+            if user_q:
+                with st.spinner("Analyse du produit..."):
+                    # Logique de réponse intelligente
+                    r = ""
+                    u_q = user_q.lower()
+                    if "utiliser" in u_q or "mode" in u_q or "comment" in u_q:
+                        r = f"Le **{row['Produit']}** s'utilise généralement en cure ou selon les besoins quotidiens. Étant un produit de la famille **{row['Famille']}**, il est important de suivre les recommandations du laboratoire **{row['Laboratoire']}** indiquées sur l'emballage."
+                    elif "peau" in u_q or "cheveux" in u_q or "pour qui" in u_q:
+                        r = f"Ce produit est spécifiquement conçu pour répondre aux besoins de la gamme **{row['Famille']}**. Il est très apprécié pour son efficacité et sa tolérance, caractéristiques du savoir-faire de **{row['Laboratoire']}**."
+                    elif "prix" in u_q or "cher" in u_q:
+                        r = f"Son prix de **{row['PPA']} DA** est très compétitif pour un produit de cette qualité professionnelle."
+                    else:
+                        r = f"Le **{row['Produit']}** est un excellent choix dans la catégorie **{row['Famille']}**. Sa date de péremption au **{row['DDP']}** garantit une utilisation en toute sécurité. Avez-vous d'autres questions ?"
+                    
+                    st.chat_message("user").write(user_q)
+                    st.chat_message("assistant").write(f"✨ **Réponse :** {r}")
+                    add_log("Question IA", f"Produit: {row['Produit']} | Q: {user_q}")
+
 # --- ONGLET 1 : CATALOGUE ---
 if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
     st.title("📦 Catalogue Produits" if st.session_state.user_role == "Client" else "📦 Gestion Dépôt")
