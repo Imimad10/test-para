@@ -693,6 +693,7 @@ def show_details(row):
                 with st.spinner("L'expert IA analyse votre demande..."):
                     if api_key:
                         try:
+                            api_key = api_key.strip()
                             genai.configure(api_key=api_key)
                             model = genai.GenerativeModel('gemini-1.5-flash')
                             prompt = f"""
