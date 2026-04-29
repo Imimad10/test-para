@@ -694,7 +694,7 @@ def show_details(row):
                     if api_key:
                         try:
                             genai.configure(api_key=api_key)
-                            model = genai.GenerativeModel('gemini-pro')
+                            model = genai.GenerativeModel('gemini-1.5-flash')
                             prompt = f"""
                             Tu es un expert en parapharmacie pour le magasin 'Pharmaciel'. 
                             Aide le client pour le produit suivant :
