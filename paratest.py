@@ -272,6 +272,24 @@ def apply_custom_theme(theme_choice):
             color: {t['text']} !important;
             font-weight: 600 !important;
         }}
+
+        /* Fix Image Sizes in Catalog */
+        div[data-testid="stImage"] {{
+            height: 200px !important;
+            background-color: white !important;
+            border-radius: 12px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            overflow: hidden !important;
+            margin-bottom: 10px !important;
+        }}
+        
+        div[data-testid="stImage"] img {{
+            height: 200px !important;
+            width: auto !important;
+            object-fit: contain !important;
+        }}
     </style>
     """, unsafe_allow_html=True)
 
