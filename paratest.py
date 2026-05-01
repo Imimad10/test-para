@@ -52,7 +52,24 @@ def add_log(action, details=""):
 # --- 2. CONFIGURATION DE PAGE ---
 st.set_page_config(page_title="Pharmaciel Pro", layout="wide", page_icon="💊")
 
-# --- 3. DESIGN SYSTEM DYNAMIQUE (THEMES) ---
+# --- 3. FONCTIONS UTILISATEURS ---
+def load_users():
+    cols = ['user', 'pw', 'role', 'whatsapp', 'display_name']
+    if not os.path.exists(USER_DB):
+        df_init = pd.DataFrame([{"user": "admin", "pw": "1992", "role": "Responsable", "whatsapp": "213550000000", "display_name": "Admin Principal"}])
+        df_init.to_csv(USER_DB, index=False)
+        return df_init
+    try:
+        df = pd.read_csv(USER_DB, dtype=str)
+        for c in cols:
+            if c not in df.columns:
+                if c == 'display_name': df[c] = "Agent Commercial"
+                else: df[c] = ""
+        return df
+    except:
+        return pd.DataFrame([{"user": "admin", "pw": "1992", "role": "Responsable", "whatsapp": "", "display_name": "Admin"}])
+
+# --- 4. DESIGN SYSTEM DYNAMIQUE (THEMES) ---
 def apply_custom_theme(theme_choice):
     themes = {
         "Clair Modern ❄️": {
@@ -372,7 +389,15 @@ def apply_custom_theme(theme_choice):
             color: white !important;
         }}
     </style>
-    <a href="https://wa.me/213550000000" class="whatsapp-float" target="_blank">
+    """, unsafe_allow_html=True)
+    
+    # Bouton WhatsApp Dynamique (Premier numéro trouvé)
+    u_db = load_users()
+    agents = u_db[u_db['whatsapp'].str.len() > 5]
+    primary_wa = agents.iloc[0]['whatsapp'] if not agents.empty else "213550000000"
+    
+    st.markdown(f"""
+    <a href="https://wa.me/{primary_wa}" class="whatsapp-float" target="_blank">
         <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="35px">
     </a>
     """, unsafe_allow_html=True)
@@ -472,15 +497,7 @@ def save_sale(cart_dict, total_val, user):
     else:
         df_sales.to_csv(SALES_DB, index=False, encoding='utf-8-sig')
 
-def load_users():
-    if not os.path.exists(USER_DB):
-        df_init = pd.DataFrame([{"user": "admin", "pw": "1992", "role": "Responsable"}])
-        df_init.to_csv(USER_DB, index=False)
-        return df_init
-    try:
-        return pd.read_csv(USER_DB, dtype={'user': str, 'pw': str, 'role': str})
-    except:
-        return pd.DataFrame([{"user": "admin", "pw": "1992", "role": "Responsable"}])
+
 
 def save_data(df, path=DB_PATH):
     df.to_csv(path, index=False, encoding='utf-8-sig')
@@ -697,7 +714,7 @@ with st.sidebar:
         nav_options = ["📦 Boutique"]
     else:
         nav_options = ["📦 Gestion & Boutique", "📊 Statistiques"]
-        if st.session_state.user_role == "Responsable": nav_options.append("⚙️ Admin")
+        if st.session_state.user_role in ["Responsable", "Commercial"]: nav_options.append("⚙️ Admin")
     
     menu = st.radio("Navigation", nav_options)
     
@@ -1245,8 +1262,17 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
             
             with c_s2:
                 st.subheader("📞 Contact Direct")
-                st.info("Besoin d'un conseil santé ?")
-                st.link_button("💬 WhatsApp Conseil", "https://wa.me/213550000000", use_container_width=True)
+                st.info("Besoin d'un conseil santé ? Nos agents sont à votre écoute :")
+                
+                # Charger les agents WhatsApp depuis la DB
+                u_db = load_users()
+                agents = u_db[u_db['whatsapp'].str.len() > 5] # Filtre les numéros valides
+                
+                if not agents.empty:
+                    for _, agent in agents.iterrows():
+                        st.link_button(f"💬 {agent['display_name']}", f"https://wa.me/{agent['whatsapp']}", use_container_width=True)
+                else:
+                    st.warning("Aucun agent n'est disponible pour le moment.")
                 
                 st.divider()
                 st.write("**Horaires :**")
@@ -1304,86 +1330,110 @@ elif menu == "📊 Statistiques":
 elif menu == "⚙️ Admin":
     st.title("⚙️ Administration & Configuration")
     
-    # 1. PARAMÈTRES GLOBAUX
-    with st.expander("🌐 Paramètres de l'Application", expanded=True):
-        st.subheader("Bandeau & IA")
-        new_msg = st.text_area("Message défilant (Marquee)", value=settings.get('marquee', ''))
-        
-        st.divider()
-        st.markdown("### 🤖 Intelligence Artificielle (Google Gemini)")
-        st.info("Pour des réponses intelligentes, obtenez une clé gratuite sur [Google AI Studio](https://aistudio.google.com/app/apikey)")
-        
-        c_ai1, c_ai2 = st.columns([2, 1])
-        with c_ai1:
-            new_gemini = st.text_input("Clé API Gemini", value=settings.get('gemini_key', ''), type="password")
-        with c_ai2:
-            ai_active = st.toggle("Activer l'IA", value=settings.get('ai_active', True))
-        
-        if st.button("💾 Enregistrer les Paramètres", use_container_width=True):
-            settings['marquee'] = new_msg
-            settings['gemini_key'] = new_gemini
-            settings['ai_active'] = ai_active
-            save_settings(settings)
-            st.success("Paramètres enregistrés !")
-            st.rerun()
+    # 1. PARAMÈTRES GLOBAUX (Visible uniquement par Responsable)
+    if st.session_state.user_role == "Responsable":
+        with st.expander("🌐 Paramètres de l'Application", expanded=True):
+            st.subheader("Bandeau & IA")
+            new_msg = st.text_area("Message défilant (Marquee)", value=settings.get('marquee', ''))
+            
+            st.divider()
+            st.markdown("### 🤖 Intelligence Artificielle (Google Gemini)")
+            st.info("Pour des réponses intelligentes, obtenez une clé gratuite sur [Google AI Studio](https://aistudio.google.com/app/apikey)")
+            
+            c_ai1, c_ai2 = st.columns([2, 1])
+            with c_ai1:
+                new_gemini = st.text_input("Clé API Gemini", value=settings.get('gemini_key', ''), type="password")
+            with c_ai2:
+                ai_active = st.toggle("Activer l'IA", value=settings.get('ai_active', True))
+            
+            if st.button("💾 Enregistrer les Paramètres", use_container_width=True):
+                settings['marquee'] = new_msg
+                settings['gemini_key'] = new_gemini
+                settings['ai_active'] = ai_active
+                save_settings(settings)
+                st.success("Paramètres enregistrés !")
+                st.rerun()
 
-    st.divider()
-    
-    # 2. GESTION ÉQUIPE
+    # 2. GESTION ÉQUIPE / MON PROFIL
     u_db = load_users()
-    st.subheader("👥 Gestion de l'équipe")
-    for index, row in u_db.iterrows():
-        c_u, c_r, c_p, c_a = st.columns([2, 2, 2, 2])
-        with c_u: new_username = st.text_input("User", value=str(row['user']), key=f"u_{index}")
-        with c_r: 
-            roles = ["Responsable", "Stock", "Préparateur", "Commercial"]
-            new_role = st.selectbox("Rôle", roles, index=roles.index(row['role']) if row['role'] in roles else 1, key=f"r_{index}")
-        with c_p: new_password = st.text_input("Nouveau MDP", placeholder="Changer ?", type="password", key=f"p_{index}")
-        with c_a:
-            st.write("")
-            cs, cd = st.columns(2)
-            if cs.button("💾", key=f"s_{index}"):
-                u_db.at[index, 'user'], u_db.at[index, 'role'] = str(new_username), str(new_role)
-                if new_password: u_db.at[index, 'pw'] = str(new_password)
-                save_data(u_db, USER_DB)
-                st.rerun()
-            if str(row['user']) != "admin" and cd.button("🗑️", key=f"d_{index}"):
-                u_db = u_db.drop(index)
-                save_data(u_db, USER_DB)
+    
+    if st.session_state.user_role == "Responsable":
+        st.subheader("👥 Gestion de l'équipe")
+        for index, row in u_db.iterrows():
+            with st.container(border=True):
+                c1, c2, c3, c4, c5 = st.columns([1.5, 1.5, 2, 2, 1])
+                with c1: nu = st.text_input("User", value=str(row['user']), key=f"u_{index}")
+                with c2: 
+                    roles = ["Responsable", "Stock", "Préparateur", "Commercial"]
+                    nr = st.selectbox("Rôle", roles, index=roles.index(row['role']) if row['role'] in roles else 1, key=f"r_{index}")
+                with c3: nw = st.text_input("WhatsApp", value=str(row.get('whatsapp', '')), placeholder="213...", key=f"w_{index}")
+                with c4: ndn = st.text_input("Nom Public", value=str(row.get('display_name', 'Agent Commercial')), key=f"dn_{index}")
+                with c5:
+                    st.write("")
+                    if st.button("💾", key=f"s_{index}"):
+                        u_db.at[index, 'user'], u_db.at[index, 'role'], u_db.at[index, 'whatsapp'], u_db.at[index, 'display_name'] = nu, nr, nw, ndn
+                        save_data(u_db, USER_DB)
+                        st.success("Mis à jour !")
+                        st.rerun()
+                    if str(row['user']) != "admin":
+                        if st.button("🗑️", key=f"d_{index}"):
+                            u_db = u_db.drop(index)
+                            save_data(u_db, USER_DB)
+                            st.rerun()
+
+        with st.expander("➕ Ajouter un collaborateur"):
+            with st.form("new_u", clear_on_submit=True):
+                nu, np, nr = st.text_input("Nom"), st.text_input("MDP", type="password"), st.selectbox("Rôle", ["Stock", "Préparateur", "Commercial", "Responsable"])
+                if st.form_submit_button("Créer"):
+                    new_user = pd.DataFrame([{"user": nu, "pw": np, "role": nr, "whatsapp": "", "display_name": "Agent Commercial"}])
+                    u_db = pd.concat([u_db, new_user], ignore_index=True)
+                    save_data(u_db, USER_DB)
+                    st.rerun()
+                    
+    elif st.session_state.user_role == "Commercial":
+        st.subheader("📱 Mon Profil WhatsApp")
+        # Trouver la ligne de l'utilisateur actuel
+        curr_user = st.session_state.current_user
+        idx = u_db[u_db['user'] == curr_user].index
+        if not idx.empty:
+            index = idx[0]
+            row = u_db.loc[index]
+            with st.form("my_profile"):
+                st.info("Configurez ici votre numéro WhatsApp pour que les clients puissent vous contacter directement.")
+                new_w = st.text_input("Mon Numéro WhatsApp (Format: 213550000000)", value=str(row.get('whatsapp', '')))
+                new_dn = st.text_input("Mon Nom Public (ex: Agent Commercial 1)", value=str(row.get('display_name', 'Agent Commercial')))
+                if st.form_submit_button("Enregistrer mon profil"):
+                    u_db.at[index, 'whatsapp'] = new_w
+                    u_db.at[index, 'display_name'] = new_dn
+                    save_data(u_db, USER_DB)
+                    st.success("Profil mis à jour !")
+                    st.rerun()
+
+    if st.session_state.user_role == "Responsable":
+        st.divider()
+        st.subheader("📢 Communication")
+        with st.form("settings_form"):
+            new_marquee = st.text_input("Message de bienvenue (Bandeau défilant)", value=settings.get('marquee', ''))
+            if st.form_submit_button("💾 Enregistrer le message"):
+                settings['marquee'] = new_marquee
+                save_settings(settings)
+                st.success("Message mis à jour !")
                 st.rerun()
 
-    with st.expander("➕ Ajouter un collaborateur"):
-        with st.form("new_u", clear_on_submit=True):
-            nu, np, nr = st.text_input("Nom"), st.text_input("MDP", type="password"), st.selectbox("Rôle", ["Stock", "Préparateur", "Commercial", "Responsable"])
-            if st.form_submit_button("Créer"):
-                u_db = pd.concat([u_db, pd.DataFrame([{"user": str(nu), "pw": str(np), "role": str(nr)}])], ignore_index=True)
-                save_data(u_db, USER_DB)
-                st.rerun()
-
-    st.divider()
-    st.subheader("📢 Communication")
-    with st.form("settings_form"):
-        new_marquee = st.text_input("Message de bienvenue (Bandeau défilant)", value=settings.get('marquee', ''))
-        if st.form_submit_button("💾 Enregistrer le message"):
-            settings['marquee'] = new_marquee
-            save_settings(settings)
-            st.success("Message mis à jour !")
-            st.rerun()
-
-    st.divider()
-    st.subheader("🛠️ Maintenance & Backups")
-    col_b1, col_b2 = st.columns(2)
-    with col_b1:
-        if st.button("💾 Sauvegarder Produits"):
-            ts = datetime.now().strftime("%Y%m%d_%H%M")
-            shutil.copy(DB_PATH, f"backup_para_{ts}.csv")
-            st.success(f"Sauvegardé : backup_para_{ts}.csv")
-        if st.button("👥 Sauvegarder Utilisateurs"):
-            ts = datetime.now().strftime("%Y%m%d_%H%M")
-            shutil.copy(USER_DB, f"backup_users_{ts}.csv")
-            st.success("Utilisateurs sauvegardés.")
-    with col_b2:
-        up_py = st.file_uploader("🚀 Upgrade Système (.py)", type="py")
-        if up_py:
-            with open(__file__, "wb") as f: f.write(up_py.getbuffer())
-            st.success("Système mis à jour !")
+        st.divider()
+        st.subheader("🛠️ Maintenance & Backups")
+        col_b1, col_b2 = st.columns(2)
+        with col_b1:
+            if st.button("💾 Sauvegarder Produits"):
+                ts = datetime.now().strftime("%Y%m%d_%H%M")
+                shutil.copy(DB_PATH, f"backup_para_{ts}.csv")
+                st.success(f"Sauvegardé : backup_para_{ts}.csv")
+            if st.button("👥 Sauvegarder Utilisateurs"):
+                ts = datetime.now().strftime("%Y%m%d_%H%M")
+                shutil.copy(USER_DB, f"backup_users_{ts}.csv")
+                st.success("Utilisateurs sauvegardés.")
+        with col_b2:
+            up_py = st.file_uploader("🚀 Upgrade Système (.py)", type="py")
+            if up_py:
+                with open(__file__, "wb") as f: f.write(up_py.getbuffer())
+                st.success("Système mis à jour !")
