@@ -310,6 +310,27 @@ def apply_custom_theme(theme_choice):
             color: {t['text']} !important;
             font-weight: 600 !important;
         }}
+
+        /* --- OPTIMISATIONS MOBILE --- */
+        @media (max-width: 768px) {{
+            [data-testid="stSidebar"] {{
+                width: 80vw !important;
+            }}
+            .stMetric {{
+                padding: 10px !important;
+            }}
+            [data-testid="stMetricValue"] {{
+                font-size: 1.5rem !important;
+            }}
+            h1 {{ font-size: 1.8rem !important; }}
+            h2 {{ font-size: 1.4rem !important; }}
+            
+            /* Ajustement des cartes en mode mobile */
+            div[data-testid="stVerticalBlock"] > div > div > div > div.stColumn {{
+                min-height: auto !important;
+                padding: 1rem !important;
+            }}
+        }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -601,6 +622,12 @@ with st.sidebar:
     if st.session_state.user_role != "Client":
         st.write(f"Rôle : **{st.session_state.user_role}**")
     
+    # Toggle Vue Mobile
+    if 'mobile_mode' not in st.session_state:
+        st.session_state.mobile_mode = False
+    
+    st.session_state.mobile_mode = st.toggle("📱 Mode Mobile", value=st.session_state.mobile_mode)
+    
     st.divider()
     
     # Navigation
@@ -675,12 +702,19 @@ with st.sidebar:
 # --- DIALOGUE DÉTAILS ---
 @st.dialog("Fiche Produit", width="large")
 def show_details(row):
-    c1, c2 = st.columns(2)
+    # Responsive columns for dialog
+    n_cols_dialog = 1 if st.session_state.mobile_mode else 2
+    cols_dialog = st.columns(n_cols_dialog)
+    
     img = get_image_base64(row['image_path'])
-    with c1:
+    with cols_dialog[0]:
         if img: st.image(img)
         else: st.warning("Image manquante")
-    with c2:
+    
+    # If mobile, we use the same column (cols_dialog[0]), else the second one
+    target_col = cols_dialog[0] if st.session_state.mobile_mode else cols_dialog[1]
+    
+    with target_col:
         st.header(row['Produit'])
         st.write(f"**🔬 Labo :** {row['Laboratoire']}")
         st.write(f"**📅 DDP :** {row['DDP']}")
@@ -782,16 +816,21 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
         # --- SECTION NOUVEAUTÉS ---
         with st.expander("✨ Nouveautés & Promotions", expanded=False):
             new_items = df_para.tail(5) # Les 5 derniers ajoutés
-            c_new = st.columns(5)
+            n_cols_news = 2 if st.session_state.mobile_mode else 5
+            c_new = st.columns(n_cols_news)
             for idx, n_row in enumerate(new_items.to_dict('records')):
-                with c_new[idx]:
+                with c_new[idx % n_cols_news]:
                     img_n = get_image_base64(n_row['image_path'])
                     if img_n: st.image(img_n, use_container_width=True)
                     st.caption(f"**{n_row['Produit']}**")
                     p_new = f"{n_row['PPA']} DA" if n_row['PPA'] > 0 else "Prix NC"
                     st.write(f"**{p_new}**")
         
-        c1, c2 = st.columns([7, 3])
+        n_cols_search = 1 if st.session_state.mobile_mode else 2
+        c_search = st.columns([7, 3] if not st.session_state.mobile_mode else [1])
+        c1 = c_search[0]
+        c2 = c_search[0] if st.session_state.mobile_mode else c_search[1]
+        
         # Liste des suggestions (Produits uniques)
         suggestions = sorted(df_para['Produit'].unique())
         with c1:
@@ -838,9 +877,10 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
             end_idx = start_idx + items_per_page
             page_items = filt.iloc[start_idx:end_idx]
             
-            for i in range(0, len(page_items), 4):
-                cols = st.columns(4)
-                for j in range(4):
+            n_cols_grid = 1 if st.session_state.mobile_mode else 4
+            for i in range(0, len(page_items), n_cols_grid):
+                cols = st.columns(n_cols_grid)
+                for j in range(n_cols_grid):
                     if i+j < len(page_items):
                         row = page_items.iloc[i+j]
                         with cols[j]:
@@ -1059,14 +1099,15 @@ elif menu == "📊 Statistiques":
     valeur_stock = (df_para['PPA'] * df_para['Quantité']).sum()
     stock_bas = df_para[df_para['Quantité'] < 5].shape[0]
     
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Total Produits", total_produits)
+    n_cols_stats = 2 if st.session_state.mobile_mode else 4
+    c_stats = st.columns(n_cols_stats)
+    c_stats[0].metric("Total Produits", total_produits)
     if st.session_state.user_role == "Responsable":
-        c2.metric("Valeur Stock", f"{valeur_stock:,.0f} DA")
+        c_stats[1 % n_cols_stats].metric("Valeur Stock", f"{valeur_stock:,.0f} DA")
     else:
-        c2.metric("Valeur Stock", "---")
-    c3.metric("Taux Images", f"{int((img_ok/total_produits)*100)}%" if total_produits > 0 else "0%")
-    c4.metric("Alertes Stock", stock_bas, delta=-stock_bas, delta_color="inverse")
+        c_stats[1 % n_cols_stats].metric("Valeur Stock", "---")
+    c_stats[2 % n_cols_stats].metric("Taux Images", f"{int((img_ok/total_produits)*100)}%" if total_produits > 0 else "0%")
+    c_stats[3 % n_cols_stats].metric("Alertes Stock", stock_bas, delta=-stock_bas, delta_color="inverse")
     
     if st.session_state.user_role == "Responsable":
         # Analyse Financière
