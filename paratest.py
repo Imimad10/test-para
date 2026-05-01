@@ -344,7 +344,34 @@ def apply_custom_theme(theme_choice):
                 padding: 1rem !important;
             }}
         }}
+        /* Floating WhatsApp Button */
+        .whatsapp-float {{
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background-color: #25d366;
+            color: white !important;
+            border-radius: 50px;
+            text-align: center;
+            width: 60px;
+            height: 60px;
+            box-shadow: 0px 4px 15px rgba(0,0,0,0.3);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }}
+        .whatsapp-float:hover {{
+            transform: scale(1.1);
+            color: white !important;
+        }}
     </style>
+    <a href="https://wa.me/213550000000" class="whatsapp-float" target="_blank">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="35px">
+    </a>
     """, unsafe_allow_html=True)
 
 # Initialisation du thème et des réglages
@@ -837,9 +864,9 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
     st.title("📦 Espace Commercial")
     
     if st.session_state.user_role == "Client":
-        t_tabs_names = ["📋 Catalogue", "🛒 Mon Panier"]
+        t_tabs_names = ["📋 Catalogue", "🛒 Mon Panier", "🤝 Support & Avis"]
     else:
-        t_tabs_names = ["📋 Catalogue", "🛒 Commandes Client", "🖼️ Images & Web", "🔄 Sync Excel"]
+        t_tabs_names = ["📋 Catalogue", "🛒 Commandes Client", "🖼️ Images & Web", "🔄 Sync Excel", "🤝 Support Client"]
         if st.session_state.user_role == "Responsable": t_tabs_names.extend(["➕ Ajout", "✏️ Modif/Suppr"])
     
     tabs = st.tabs(t_tabs_names)
@@ -1233,6 +1260,52 @@ elif menu == "📊 Statistiques":
                     save_sale(st.session_state.cart, total_cmd, st.session_state.current_user)
                     st.success("🚀 Commande validée avec succès !")
                     st.link_button("Ouvrir WhatsApp", f"https://wa.me/?text={urllib.parse.quote(msg_cart)}")
+
+    # --- ONGLET : ENGAGEMENT & SUPPORT ---
+    if "🤝 Support & Avis" in t_tabs_names or "🤝 Support Client" in t_tabs_names:
+        idx_s = t_tabs_names.index("🤝 Support & Avis") if "🤝 Support & Avis" in t_tabs_names else t_tabs_names.index("🤝 Support Client")
+        with tabs[idx_s]:
+            st.title("🤝 Engagement & Support")
+            
+            c_sup1, c_sup2 = st.columns([2, 1])
+            
+            with c_sup1:
+                st.subheader("❓ FAQ - Foire Aux Questions")
+                with st.expander("💳 Quels sont les modes de paiement ?", expanded=True):
+                    st.write("Nous acceptons les paiements en espèces à la livraison, ainsi que les virements BaridiMob.")
+                with st.expander("🚚 Quels sont les délais de livraison ?"):
+                    st.write("Les livraisons se font généralement sous 24h à 48h selon votre wilaya.")
+                with st.expander("🔄 Quelle est votre politique de retour ?"):
+                    st.write("Les produits de parapharmacie peuvent être retournés sous 7 jours s'ils ne sont pas ouverts et dans leur emballage d'origine.")
+                with st.expander("💊 Puis-je obtenir un conseil pharmaceutique ?"):
+                    st.write("Oui ! Nos experts sont disponibles via WhatsApp pour vous conseiller sur les routines de soin et l'usage des produits.")
+
+                st.divider()
+                st.subheader("⭐ Avis de nos Clients")
+                
+                # Simulation d'avis clients
+                avis = [
+                    {"nom": "Amine B.", "note": "⭐⭐⭐⭐⭐", "comm": "Service impeccable et livraison très rapide ! Je recommande."},
+                    {"nom": "Sarah M.", "note": "⭐⭐⭐⭐⭐", "comm": "Les produits sont authentiques et l'assistant IA m'a bien aidée."},
+                    {"nom": "Karim T.", "note": "⭐⭐⭐⭐", "comm": "Très bon choix de produits, il manquait juste une référence mais le support a été top."}
+                ]
+                
+                for a in avis:
+                    with st.container(border=True):
+                        st.markdown(f"**{a['nom']}** {a['note']}")
+                        st.write(f"_{a['comm']}_")
+            
+            with c_sup2:
+                st.subheader("📞 Contact Direct")
+                st.info("Besoin d'une réponse immédiate ?")
+                st.link_button("💬 WhatsApp Direct", "https://wa.me/213550000000", use_container_width=True)
+                st.link_button("📧 Nous écrire par Email", "mailto:contact@pharmaciel.dz", use_container_width=True)
+                st.link_button("📍 Notre Localisation", "https://maps.google.com", use_container_width=True)
+                
+                st.divider()
+                st.subheader("🕒 Horaires")
+                st.write("Samedi - Jeudi : 08:30 - 18:00")
+                st.write("Vendredi : Fermé")
 
 # --- ONGLET 3 : ADMIN ---
 elif menu == "⚙️ Admin":
