@@ -364,40 +364,59 @@ st.markdown(f"""
 
 # --- 3. FONCTIONS TECHNIQUES ---
 
+def clean_num(val):
+    if pd.isna(val) or val == "": return 0.0
+    if isinstance(val, (int, float)): return float(val)
+    # Nettoyage de chaîne
+    s = str(val).upper().replace('DZD', '').replace('DA', '').replace(' ', '').strip()
+    if not s: return 0.0
+    # Gestion intelligente des séparateurs : si on a une virgule et pas de point, c'est probablement la décimale (format FR/DZ)
+    if ',' in s and '.' not in s:
+        s = s.replace(',', '.')
+    # Sinon si on a les deux, on retire la virgule (format US milliers)
+    elif ',' in s and '.' in s:
+        s = s.replace(',', '')
+    
+    # Garder uniquement chiffres et point
+    s = "".join(c for c in s if c.isdigit() or c == '.')
+    try:
+        return float(s)
+    except:
+        return 0.0
+
 def load_data():
     cols = ['Produit', 'Laboratoire', 'Quantité', 'PPA', 'image_path', 'Famille', 'DDP', 'Promo', 'Prix_Achat', 'Description', 'Dépôt', 'Arrivage']
     if not os.path.exists(DB_PATH): return pd.DataFrame(columns=cols)
     try:
         df = pd.read_csv(DB_PATH, encoding='utf-8-sig')
         
-        # Renommage flexible pour supporter plusieurs formats d'export
+        # Renommage flexible
         rename_map = {
             'Quantité  Dépot': 'Quantité', 
             'Quantité Dépot': 'Quantité',
             'Quantité Dépôt': 'Quantité',
             'Fournisseur': 'Famille',
-            'Prix': 'PPA'
+            'Prix': 'PPA',
+            'LABO': 'Laboratoire'
         }
         df = df.rename(columns=rename_map)
         
-        # Gestion des colonnes dupliquées
+        # Gestion des colonnes dupliquées (crucial après renommage)
         df = df.loc[:, ~df.columns.duplicated()]
         
         for c in cols:
             if c not in df.columns: 
                 if c == 'Promo': df[c] = False
-                elif c in ['Prix_Achat', 'PPA', 'Quantité']: df[c] = 0
+                elif c in ['Prix_Achat', 'PPA', 'Quantité']: df[c] = 0.0
                 else: df[c] = ""
             
-        # Nettoyage numérique
-        df['PPA'] = pd.to_numeric(df['PPA'], errors='coerce').fillna(0)
-        df['Prix_Achat'] = pd.to_numeric(df['Prix_Achat'], errors='coerce').fillna(0)
-        df['Quantité'] = pd.to_numeric(df['Quantité'], errors='coerce').fillna(0)
+        # Nettoyage numérique Robuste
+        df['PPA'] = df['PPA'].apply(clean_num)
+        df['Prix_Achat'] = df['Prix_Achat'].apply(clean_num)
+        df['Quantité'] = df['Quantité'].apply(clean_num)
         df['Promo'] = df['Promo'].astype(bool)
         
-        # --- REGROUPEMENT INTELLIGENT ---
-        # On groupe par Produit et PPA pour sommer les quantités
-        # On garde la DDP la plus proche ou la première rencontrée
+        # --- REGROUPEMENT ---
         agg_rules = {c: 'first' for c in df.columns if c not in ['Produit', 'PPA', 'Quantité']}
         agg_rules['Quantité'] = 'sum'
         df = df.groupby(['Produit', 'PPA'], as_index=False).agg(agg_rules)
@@ -1018,12 +1037,16 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
                     if st.button("🚀 Lancer la Synchronisation", disabled=df_new.empty):
                         df_new = df_new.rename(columns={
                             'Quantité  Dépot': 'Quantité', 'Quantité Dépot': 'Quantité', 'Quantité Dépôt': 'Quantité',
-                            'Fournisseur': 'Famille', 'Labo': 'Laboratoire', 'Prix': 'PPA'
+                            'Fournisseur': 'Famille', 'Labo': 'Laboratoire', 'Prix': 'PPA', 'LABO': 'Laboratoire'
                         })
+                        # Nettoyer les doublons de colonnes après renommage
+                        df_new = df_new.loc[:, ~df_new.columns.duplicated()]
+                        
                         df_new['Produit'] = df_new['Produit'].astype(str).str.upper().str.strip()
+                        
+                        # Utiliser le nettoyeur robuste pour PPA
                         if 'PPA' in df_new.columns:
-                            df_new['PPA'] = df_new['PPA'].astype(str).str.replace('DZD', '', regex=False).str.replace(',', '', regex=False).str.strip()
-                            df_new['PPA'] = pd.to_numeric(df_new['PPA'], errors='coerce').fillna(0)
+                            df_new['PPA'] = df_new['PPA'].apply(clean_num)
 
                         df_img = df_para[['Produit', 'image_path']].drop_duplicates('Produit')
                         merged = pd.merge(df_new, df_img, on='Produit', how='left')
