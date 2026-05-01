@@ -873,16 +873,8 @@ def show_details(row):
                                 Réponds de manière professionnelle, rassurante et précise. Si tu ne connais pas le produit, donne des conseils généraux basés sur sa famille ({row['Famille']}).
                                 """
                                 
-                                # Recherche dynamique du modèle disponible
-                                available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-                                target_model = "gemini-1.5-flash" # Par défaut
-                                if available_models:
-                                    for am in available_models:
-                                        if "1.5-flash" in am: 
-                                            target_model = am
-                                            break
-                                        elif "gemini-pro" in am or "1.0-pro" in am:
-                                            target_model = am
+                                # Utilisation du modèle choisi par l'admin ou défaut sur Flash
+                                target_model = settings.get('ai_model', 'gemini-1.5-flash')
                                 
                                 model = genai.GenerativeModel(target_model)
                                 response = model.generate_content(prompt)
@@ -1405,12 +1397,30 @@ elif menu == "⚙️ Admin":
             with c_ai2:
                 ai_active = st.toggle("Activer l'IA", value=settings.get('ai_active', True))
             
-            if st.button("💾 Enregistrer les Paramètres", use_container_width=True):
+            st.write("---")
+            st.markdown("#### ⚙️ Choix du Modèle")
+            ai_models = {
+                "gemini-1.5-flash": "⚡ Flash (Recommandé - Gratuit & Rapide)",
+                "gemini-1.5-pro": "🧠 Pro (Avancé - Plus intelligent, Quotas limités)",
+                "gemini-1.0-pro": "📦 Legacy (Ancien modèle)"
+            }
+            curr_model = settings.get('ai_model', 'gemini-1.5-flash')
+            # Fallback si le modèle actuel n'est plus dans la liste
+            if curr_model not in ai_models: curr_model = "gemini-1.5-flash"
+            
+            new_model = st.selectbox("Modèle à utiliser", options=list(ai_models.keys()), 
+                                    format_func=lambda x: ai_models[x], 
+                                    index=list(ai_models.keys()).index(curr_model))
+            
+            st.caption("💡 **Conseil** : Le modèle **Flash** est parfait pour le conseil client et reste gratuit avec des limites généreuses. Le modèle **Pro** est à utiliser si vous avez besoin d'analyses très complexes.")
+
+            if st.button("💾 Enregistrer les Paramètres IA", use_container_width=True):
                 settings['marquee'] = new_msg
                 settings['gemini_key'] = new_gemini
                 settings['ai_active'] = ai_active
+                settings['ai_model'] = new_model
                 save_settings(settings)
-                st.success("Paramètres enregistrés !")
+                st.success("Paramètres IA mis à jour !")
                 st.rerun()
 
     # 2. GESTION ÉQUIPE / MON PROFIL
