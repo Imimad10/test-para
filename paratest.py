@@ -160,12 +160,16 @@ def apply_custom_theme(theme_choice):
         }}
         
         {"""
-        [data-testid='stAppViewContainer'] h1 { color: #38bdf8 !important; font-weight: 700; }
-        [data-testid='stAppViewContainer'] h2 { color: #818cf8 !important; font-weight: 600; }
-        [data-testid='stAppViewContainer'] h3 { color: #c084fc !important; font-weight: 600; }
-        [data-testid='stMetricValue'] { color: #38bdf8 !important; }
-        [data-testid='stMetricLabel'] { color: #94a3b8 !important; }
-        """ if theme_choice == "Antigravity Dark \U0001f30c" else ""}
+        h1, h2, h3, .stHeader {
+            background: linear-gradient(90deg, #38bdf8, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+        }
+        [data-testid="stMetricValue"] {
+            color: #38bdf8 !important;
+        }
+        """ if theme_choice == "Antigravity Dark 🌌" else ""}
         
         /* Typography Fixes */
         [data-testid="stHeader"] {{
@@ -590,54 +594,12 @@ def generate_pdf_catalogue(df):
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('LEFTPADDING', (0, 0), (-1, -1), 5),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
     ]))
     elements.append(t)
-    doc.build(elements)
-    buffer.seek(0)
-    return buffer
-
-def generate_proforma_pdf(cart_dict, client_name="Client"):
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=40)
-    elements = []
-    styles = getSampleStyleSheet()
-    
-    # En-tête
-    header = Paragraph(f"<b>DEVIS / BON DE COMMANDE</b>", styles['Title'])
-    elements.append(header)
-    elements.append(Paragraph(f"<b>Date :</b> {datetime.now().strftime('%d/%m/%Y %H:%M')}", styles['Normal']))
-    elements.append(Paragraph(f"<b>Destinataire :</b> {client_name}", styles['Normal']))
-    elements.append(Spacer(1, 20))
-    
-    # Table
-    data = [["Désignation", "Quantité", "Prix Unit. (DA)", "Total (DA)"]]
-    total_gr = 0
-    for p, d in cart_dict.items():
-        sub = d['qty'] * d['price']
-        data.append([p, str(d['qty']), f"{d['price']:,.2f}", f"{sub:,.2f}"])
-        total_gr += sub
-    
-    t = Table(data, colWidths=[240, 60, 100, 100])
-    t.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.black),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
-        ('ALIGN', (1,0), (-1,-1), 'CENTER'),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.black),
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 10),
-        ('TOPPADDING', (0,0), (-1,-1), 10),
-    ]))
-    elements.append(t)
-    elements.append(Spacer(1, 20))
-    
-    # Total
-    total_style = styles['Heading2']
-    total_style.alignment = 2 # Right
-    elements.append(Paragraph(f"TOTAL NET : {total_gr:,.2f} DA", total_style))
-    
-    elements.append(Spacer(1, 50))
-    elements.append(Paragraph("Document généré par Pharmaciel Pro. Validité : 7 jours.", styles['Normal']))
-    
     doc.build(elements)
     buffer.seek(0)
     return buffer
@@ -841,9 +803,6 @@ with st.sidebar:
             st.rerun()
             
         st.write(f"**Total : {total_panier} DA**")
-        client_name_input = st.text_input("Nom du client (Devis)", placeholder="Pharmacie El Amal...", key="client_name_devis")
-        proforma_buf = generate_proforma_pdf(st.session_state.cart, client_name=client_name_input or "Client")
-        st.download_button("📄 Télécharger Devis PDF", proforma_buf, "Devis_Pharmaciel.pdf", "application/pdf", use_container_width=True)
         msg_cart = f"Bonjour Pharmaciel, je souhaite commander :\n" + "\n".join([f"- {k} (x{v['qty']})" for k,v in st.session_state.cart.items()])
         st.link_button("🚀 Envoyer WhatsApp", f"https://wa.me/?text={urllib.parse.quote(msg_cart)}", use_container_width=True)
         if st.button("🗑️ Vider le panier", use_container_width=True):
@@ -974,7 +933,7 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
         t_tabs_names = ["📋 Catalogue", "🛒 Mon Panier", "🤝 Support & Avis"]
     else:
         t_tabs_names = ["📋 Catalogue", "🛒 Commandes Client", "🖼️ Images & Web", "🔄 Sync Excel", "🤝 Support Client"]
-        if st.session_state.user_role == "Responsable": t_tabs_names.extend(["➕ Ajout", "✏️ Modif/Suppr", "📊 Intelligence"])
+        if st.session_state.user_role == "Responsable": t_tabs_names.extend(["➕ Ajout", "✏️ Modif/Suppr"])
     
     tabs = st.tabs(t_tabs_names)
 
@@ -1317,67 +1276,8 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
                         st.warning("Produit supprimé.")
                         st.rerun()
 
-    # --- ONGLET : INTELLIGENCE COMMERCIALE ---
-    if "📊 Intelligence" in t_tabs_names:
-        with tabs[t_tabs_names.index("📊 Intelligence")]:
-            st.subheader("📊 Intelligence Commerciale")
-            
-            # --- KPIs en haut ---
-            st.markdown("### 📈 Indicateurs Clés")
-            k1, k2, k3, k4 = st.columns(4)
-            valeur_totale = (df_para['PPA'] * df_para['Quantité']).sum()
-            produits_promo = len(df_para[df_para['Promo'] == True])
-            stock_bas = len(df_para[df_para['Quantité'] < 5])
-            
-            try:
-                df_para['DDP_dt'] = pd.to_datetime(df_para['DDP'], format='%m/%y', errors='coerce')
-                now = pd.Timestamp.now()
-                expiry_soon = len(df_para[(df_para['DDP_dt'] > now) & (df_para['DDP_dt'] < now + pd.DateOffset(months=3))])
-            except:
-                expiry_soon = 0
-            
-            k1.metric("💰 Valeur Totale Stock", f"{valeur_totale:,.0f} DA")
-            k2.metric("🔥 Produits en Promo", produits_promo)
-            k3.metric("⚠️ Stock Bas (<5)", stock_bas, delta=-stock_bas, delta_color="inverse")
-            k4.metric("📅 Péremption <3 mois", expiry_soon, delta=-expiry_soon, delta_color="inverse")
-            
-            st.divider()
-            
-            col_d1, col_d2 = st.columns(2)
-            
-            with col_d1:
-                st.markdown("### 🏆 Top 10 Produits (Valeur Stock)")
-                df_para['valeur'] = df_para['PPA'] * df_para['Quantité']
-                top_produits = df_para.nlargest(10, 'valeur')[['Produit', 'valeur', 'Quantité']]
-                top_produits.columns = ['Produit', 'Valeur Stock (DA)', 'Qté']
-                st.dataframe(top_produits.set_index('Produit'), use_container_width=True)
-                
-            with col_d2:
-                st.markdown("### 📊 Marge par Laboratoire")
-                if 'Prix_Achat' in df_para.columns:
-                    df_para['marge'] = df_para['PPA'] - df_para['Prix_Achat']
-                    marge_labo = df_para.groupby('Laboratoire')['marge'].mean().nlargest(10)
-                    st.bar_chart(marge_labo)
-                else:
-                    st.info("Colonne Prix_Achat non disponible.")
-            
-            st.divider()
-            st.markdown("### 🚨 Alertes Péremption (< 3 mois)")
-            if expiry_soon > 0:
-                df_exp = df_para[
-                    (df_para['DDP_dt'] > now) & (df_para['DDP_dt'] < now + pd.DateOffset(months=3))
-                ][['Produit', 'Laboratoire', 'DDP', 'Quantité', 'PPA']].copy()
-                st.dataframe(df_exp, use_container_width=True)
-                
-                # Export
-                csv_exp = df_exp.to_csv(index=False, encoding='utf-8-sig').encode('utf-8-sig')
-                st.download_button("📥 Exporter Alertes CSV", csv_exp, "alertes_peremption.csv", "text/csv")
-            else:
-                st.success("✅ Aucun produit en péremption critique dans les 3 prochains mois.")
-    
     # --- ONGLET : PANIER / COMMANDES ---
     if "🛒 Mon Panier" in t_tabs_names or "🛒 Commandes Client" in t_tabs_names:
-
         idx_p = t_tabs_names.index("🛒 Mon Panier") if "🛒 Mon Panier" in t_tabs_names else t_tabs_names.index("🛒 Commandes Client")
         with tabs[idx_p]:
             st.subheader("🛒 Gestion du Panier & Proforma")
@@ -1634,103 +1534,3 @@ elif menu == "⚙️ Admin":
             if up_py:
                 with open(__file__, "wb") as f: f.write(up_py.getbuffer())
                 st.success("Système mis à jour !")
-
-# ============================================================
-# 🤖 CHATBOT IA GLOBAL FLOTTANT
-# ============================================================
-@st.dialog("🤖 Assistant Pharmaciel IA", width="large")
-def show_global_chatbot():
-    st.markdown("Bonjour ! Je suis votre **conseiller IA Pharmaciel**. Posez-moi n'importe quelle question sur nos produits ou la parapharmacie.")
-    
-    api_key = settings.get('gemini_key', '')
-    ai_model = settings.get('ai_model', 'gemini-1.5-flash')
-    
-    if 'chatbot_history' not in st.session_state:
-        st.session_state.chatbot_history = []
-    
-    # Afficher l'historique
-    for msg in st.session_state.chatbot_history:
-        st.chat_message(msg['role']).write(msg['content'])
-    
-    user_input = st.chat_input("Posez votre question ici...")
-    
-    if user_input:
-        st.session_state.chatbot_history.append({"role": "user", "content": user_input})
-        st.chat_message("user").write(user_input)
-        
-        with st.spinner("Analyse en cours..."):
-            if api_key:
-                try:
-                    genai.configure(api_key=api_key.strip())
-                    
-                    # Contexte catalogue
-                    familles = ", ".join(df_para['Famille'].dropna().unique()[:10])
-                    labos = ", ".join(df_para['Laboratoire'].dropna().unique()[:10])
-                    
-                    prompt = f"""Tu es un expert en parapharmacie pour le magasin 'Pharmaciel Pro'.
-Voici les grandes familles de produits disponibles : {familles}
-Principaux laboratoires : {labos}
-Total produits : {len(df_para)}
-
-Question du client : {user_input}
-
-Réponds de manière professionnelle et concise. Si la question concerne un produit spécifique, 
-indique si ce type de produit peut être trouvé dans notre catalogue et donne des conseils d'usage."""
-                    
-                    model = genai.GenerativeModel(ai_model)
-                    response = model.generate_content(prompt)
-                    reply = response.text
-                except Exception as e:
-                    e_str = str(e)
-                    if "429" in e_str:
-                        reply = "⚠️ Quota temporairement atteint. Patientez 60 secondes et réessayez."
-                    else:
-                        reply = f"Service IA indisponible. Contactez-nous sur WhatsApp."
-            else:
-                # Réponse de secours sans clé API
-                q = user_input.lower()
-                if any(w in q for w in ["prix", "coût", "tarif"]):
-                    reply = "Pour connaître nos prix, veuillez consulter le catalogue ou nous contacter sur WhatsApp."
-                elif any(w in q for w in ["livraison", "délai", "expédition"]):
-                    reply = "Nous livrons dans les 58 wilayas. Délai moyen : 24-48h selon votre localisation."
-                elif any(w in q for w in ["stock", "disponible", "dispo"]):
-                    reply = f"Nous avons **{len(df_para)}** références en stock. Consultez le catalogue pour vérifier la disponibilité."
-                else:
-                    reply = f"Je suis à votre service ! Pour des réponses IA personnalisées, l'administrateur doit configurer une clé Gemini. En attendant, n'hésitez pas à nous contacter via WhatsApp."
-        
-        st.session_state.chatbot_history.append({"role": "assistant", "content": reply})
-        st.chat_message("assistant").write(reply)
-    
-    if st.button("🗑️ Effacer la conversation"):
-        st.session_state.chatbot_history = []
-        st.rerun()
-
-# --- Bouton flottant Chatbot ---
-st.markdown("""
-<style>
-.chatbot-float {
-    position: fixed;
-    bottom: 80px;
-    right: 22px;
-    background: linear-gradient(135deg, #6366f1, #38bdf8);
-    border-radius: 50%;
-    width: 52px;
-    height: 52px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    box-shadow: 0 4px 20px rgba(99,102,241,0.5);
-    z-index: 9998;
-    cursor: pointer;
-    animation: pulse-chat 2.5s infinite;
-}
-@keyframes pulse-chat {
-    0%, 100% { box-shadow: 0 4px 20px rgba(99,102,241,0.5); }
-    50% { box-shadow: 0 4px 35px rgba(99,102,241,0.9); }
-}
-</style>
-""", unsafe_allow_html=True)
-
-if st.button("🤖", key="open_chatbot", help="Ouvrir l'assistant IA"):
-    show_global_chatbot()
