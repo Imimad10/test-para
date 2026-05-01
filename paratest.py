@@ -708,6 +708,14 @@ with st.sidebar:
         f_famille = st.selectbox("Famille", ["Toutes"] + sorted([f for f in df_para['Famille'].unique() if f]))
         f_labo = st.selectbox("Laboratoire", ["Tous"] + sorted([l for l in df_para['Laboratoire'].unique() if l]))
         f_alerte = st.selectbox("Alertes Stock/DDP", ["Aucune", "Stock Bas (<5)", "Péremption Proche"])
+        
+        if st.button("🔄 Réinitialiser tous les filtres", use_container_width=True):
+            st.session_state.page = 1
+            # On peut utiliser st.rerun() pour tout remettre à zéro si on utilise des clés
+            # Mais ici on va juste inciter l'utilisateur à vider la recherche
+            st.info("Filtres réinitialisés. Veuillez effacer le champ de recherche si nécessaire.")
+            st.rerun()
+            
         st.divider()
         pdf_buf = generate_pdf_catalogue(df_para)
         st.download_button("📄 PDF Catalogue", pdf_buf, "Catalogue_Pharmaciel.pdf", "application/pdf", use_container_width=True)
@@ -911,11 +919,16 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
             # Logique simplifiée : contient 2024 ou 2025
             filt = filt[filt['DDP'].str.contains('2024|2025', na=False)]
             
-        if search: filt = filt[filt['Produit'].str.contains(search, case=False, na=False)]
+        if search: 
+            # Utilisation de regex=False pour éviter les bugs avec les caractères spéciaux comme '+' (SPF50+)
+            filt = filt[filt['Produit'].str.contains(search, case=False, na=False, regex=False)]
         if tri_az: filt = filt.sort_values(by='Produit', ascending=True)
         if hide: filt = filt[filt['image_path'].str.len() > 3]
         
-        if filt.empty: st.warning("Aucun produit ne correspond à ces critères.")
+        if filt.empty: 
+            st.warning("⚠️ Aucun produit ne correspond à ces critères.")
+            if f_famille != "Toutes" or f_labo != "Tous" or f_alerte != "Aucune":
+                st.info("💡 Conseil : Vérifiez vos filtres dans la barre latérale (Laboratoire, Famille, etc.) car ils peuvent bloquer l'affichage.")
         else:
             # --- PAGINATION ---
             items_per_page = 12
