@@ -1194,6 +1194,10 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
                         if 'PPA' in df_new.columns:
                             df_new['PPA'] = df_new['PPA'].apply(clean_num)
 
+                        # Éviter d'écraser les images/descriptions par des colonnes vides de l'Excel
+                        cols_to_drop = [c for c in ['image_path', 'image', 'photo'] if c in df_new.columns]
+                        if cols_to_drop: df_new = df_new.drop(columns=cols_to_drop)
+
                         df_img = df_para[['Produit', 'image_path']].drop_duplicates('Produit')
                         merged = pd.merge(df_new, df_img, on='Produit', how='left')
                         merged['image_path'] = merged['image_path'].fillna("")
