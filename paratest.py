@@ -13,6 +13,9 @@ from reportlab.lib import colors
 import io
 import json
 import google.generativeai as genai
+from streamlit_extras.colored_header import colored_header
+from streamlit_extras.mention import mention
+from streamlit_extras.add_vertical_space import add_vertical_space
 
 # --- 1. CONFIGURATION & CHEMINS ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -1265,20 +1268,20 @@ elif menu == "📊 Statistiques":
     if "🤝 Support & Avis" in t_tabs_names or "🤝 Support Client" in t_tabs_names:
         idx_s = t_tabs_names.index("🤝 Support & Avis") if "🤝 Support & Avis" in t_tabs_names else t_tabs_names.index("🤝 Support Client")
         with tabs[idx_s]:
-            st.title("🤝 Engagement & Support")
+            colored_header(label="🤝 Engagement & Support", description="Conseils, aide et témoignages", color_name="green-70")
             
             c_sup1, c_sup2 = st.columns([2, 1])
             
             with c_sup1:
                 st.subheader("❓ FAQ - Foire Aux Questions")
-                with st.expander("💳 Quels sont les modes de paiement ?", expanded=True):
-                    st.write("Nous acceptons les paiements en espèces à la livraison, ainsi que les virements BaridiMob.")
-                with st.expander("🚚 Quels sont les délais de livraison ?"):
-                    st.write("Les livraisons se font généralement sous 24h à 48h selon votre wilaya.")
-                with st.expander("🔄 Quelle est votre politique de retour ?"):
-                    st.write("Les produits de parapharmacie peuvent être retournés sous 7 jours s'ils ne sont pas ouverts et dans leur emballage d'origine.")
-                with st.expander("💊 Puis-je obtenir un conseil pharmaceutique ?"):
-                    st.write("Oui ! Nos experts sont disponibles via WhatsApp pour vous conseiller sur les routines de soin et l'usage des produits.")
+                with st.expander("🛡️ Les produits sont-ils authentiques ?", expanded=True):
+                    st.write("Tous nos produits proviennent directement des laboratoires officiels ou de distributeurs agréés. Nous garantissons 100% d'authenticité.")
+                with st.expander("🚚 Livrez-vous dans les 58 Wilayas ?"):
+                    st.write("Oui, nous assurons une livraison nationale. Les délais varient de 24h (Alger, Blida) à 4-5 jours pour le Sud.")
+                with st.expander("💳 Quels sont les modes de paiement ?"):
+                    st.write("Paiement à la livraison (Cash on Delivery) ou via virement BaridiMob / CCP.")
+                with st.expander("💊 Comment utiliser l'assistant IA ?"):
+                    st.write("Cliquez sur 'Détails' d'un produit, puis posez votre question dans l'encadré 'Assistant Expert'. Il vous conseillera sur l'utilisation et les bienfaits.")
 
                 st.divider()
                 st.subheader("⭐ Avis de nos Clients")
@@ -1294,18 +1297,35 @@ elif menu == "📊 Statistiques":
                     with st.container(border=True):
                         st.markdown(f"**{a['nom']}** {a['note']}")
                         st.write(f"_{a['comm']}_")
+                
+                add_vertical_space(2)
+                with st.expander("📝 Laisser un avis"):
+                    with st.form("form_avis"):
+                        n_avis = st.text_input("Votre nom")
+                        m_avis = st.text_area("Votre témoignage")
+                        s_avis = st.slider("Note", 1, 5, 5)
+                        if st.form_submit_button("Envoyer mon avis"):
+                            st.success("Merci ! Votre avis sera affiché après modération.")
+                            add_log("Nouveau Témoignage", f"De: {n_avis}")
             
             with c_sup2:
-                st.subheader("📞 Contact Direct")
-                st.info("Besoin d'une réponse immédiate ?")
-                st.link_button("💬 WhatsApp Direct", "https://wa.me/213550000000", use_container_width=True)
-                st.link_button("📧 Nous écrire par Email", "mailto:contact@pharmaciel.dz", use_container_width=True)
-                st.link_button("📍 Notre Localisation", "https://maps.google.com", use_container_width=True)
+                st.subheader("📞 Contact & Réseaux")
+                st.info("Experts à votre écoute")
+                st.link_button("💬 WhatsApp Conseil", "https://wa.me/213550000000", use_container_width=True)
+                
+                add_vertical_space(1)
+                st.write("**Suivez-nous :**")
+                mention(label="Instagram", icon="camera", url="https://instagram.com")
+                mention(label="Facebook", icon="facebook", url="https://facebook.com")
                 
                 st.divider()
-                st.subheader("🕒 Horaires")
+                st.subheader("🕒 Horaires d'écoute")
                 st.write("Samedi - Jeudi : 08:30 - 18:00")
-                st.write("Vendredi : Fermé")
+                st.write("Vendredi : Support WhatsApp uniquement")
+                
+                st.divider()
+                st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/V_C_R_G_logo.png/800px-V_C_R_G_logo.png", width=100)
+                st.caption("Pharmaciel Pro © 2026")
 
 # --- ONGLET 3 : ADMIN ---
 elif menu == "⚙️ Admin":
