@@ -261,20 +261,33 @@ def apply_custom_theme(theme_choice):
              justify-content: space-between;
         }}
 
-        /* Default for Catalog: Force uniform height */
+        /* Default for Catalog: Force uniform height and look */
         [data-testid="column"] img {{
-            height: 180px !important;
+            height: 220px !important;
+            width: 100% !important;
             object-fit: contain !important;
+            background-color: white !important; /* Standardize background for images with transparency */
+            border-radius: 12px !important;
+            padding: 10px !important;
+            border: 1px solid rgba(0,0,0,0.05) !important;
+            transition: transform 0.3s ease !important;
+        }}
+
+        [data-testid="column"] img:hover {{
+            transform: scale(1.05);
         }}
 
         /* EXCEPTION for Dialogs (Details): Allow full size */
         [data-testid="stDialog"] img, 
         [data-testid="stDialog"] [data-testid="column"] img {{
             height: auto !important;
-            max-height: 80vh !important;
+            max-height: 70vh !important;
             width: auto !important;
             max-width: 100% !important;
             object-fit: scale-down !important;
+            background: transparent !important;
+            border: none !important;
+            padding: 0px !important;
         }}
 
         /* Headers */
