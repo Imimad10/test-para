@@ -1017,9 +1017,9 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
         with tabs[t_tabs_names.index("🖼️ Images & Web")]:
             st.subheader("🖼️ Gestion des visuels")
             
-            mode_img = st.radio("Mode d'ajout", ["Un par un", "⚡ Importation Groupée (Rapide)"], horizontal=True)
+            mode_img = st.radio("Mode d'action", ["Un par un (Nouveaux)", "🖼️ Modifier / Supprimer", "⚡ Importation Groupée"], horizontal=True)
             
-            if mode_img == "Un par un":
+            if mode_img == "Un par un (Nouveaux)":
                 df_sans_image = df_para[
                     (df_para['image_path'].isna()) | 
                     (df_para['image_path'] == "") | 
@@ -1030,7 +1030,7 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
                     st.success("🎉 Tous les produits ont déjà une photo !")
                 else:
                     liste_produits = sorted(df_sans_image['Produit'].unique())
-                    sel_prod = st.selectbox("Sélectionner un produit", liste_produits)
+                    sel_prod = st.selectbox("Sélectionner un produit sans image", liste_produits)
                     
                     c1, c2 = st.columns(2)
                     with c1:
@@ -1045,6 +1045,40 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
                     with c2:
                         st.info("Recherche rapide")
                         st.link_button("🌐 Chercher sur Google Images", f"https://www.google.com/search?tbm=isch&q={sel_prod.replace(' ','+')}")
+
+            elif mode_img == "🖼️ Modifier / Supprimer":
+                df_avec_image = df_para[df_para['image_path'].str.len() > 3]
+                if df_avec_image.empty:
+                    st.info("Aucun produit n'a d'image actuellement.")
+                else:
+                    liste_prod_all = sorted(df_para['Produit'].unique())
+                    sel_prod = st.selectbox("Choisir le produit à modifier", liste_prod_all)
+                    
+                    prod_row = df_para[df_para['Produit'] == sel_prod].iloc[0]
+                    curr_img = get_image_base64(prod_row['image_path'])
+                    
+                    col_m1, col_m2 = st.columns(2)
+                    with col_m1:
+                        if curr_img:
+                            st.image(curr_img, caption="Image Actuelle", width=200)
+                            if st.button("🗑️ Supprimer l'image actuelle", type="secondary"):
+                                df_para.loc[df_para['Produit'] == sel_prod, 'image_path'] = ""
+                                save_data(df_para)
+                                st.success("Lien image supprimé !")
+                                st.rerun()
+                        else:
+                            st.warning("Ce produit n'a pas encore d'image.")
+                    
+                    with col_m2:
+                        st.write("📤 Remplacer / Ajouter")
+                        new_up = st.file_uploader("Nouvelle image", type=['png', 'jpg', 'jpeg'], key="replace_up")
+                        if new_up and st.button("💾 Enregistrer la nouvelle image"):
+                            fname = f"{clean_filename(sel_prod)}.{new_up.name.split('.')[-1]}"
+                            with open(os.path.join(IMG_DIR, fname), "wb") as f: f.write(new_up.getbuffer())
+                            df_para.loc[df_para['Produit'] == sel_prod, 'image_path'] = fname
+                            save_data(df_para)
+                            st.success("Image mise à jour !")
+                            st.rerun()
             
             else: # IMPORT GROUPÉ
                 st.info("💡 **Astuce** : Nommez vos images exactement comme vos produits (ex: `DOLIPRANE.jpg`). Le système les liera automatiquement !")
