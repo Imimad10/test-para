@@ -127,6 +127,17 @@ def apply_custom_theme(theme_choice):
             "sidebar_text": "#05d9e8",
             "input_bg": "#111111",
             "input_text": "#00ff9f"
+        },
+        "Antigravity Dark 🌌": {
+            "bg": "linear-gradient(135deg, #020617 0%, #0f172a 100%)",
+            "card_bg": "rgba(15, 23, 42, 0.4)",
+            "text": "#f8fafc",
+            "sidebar_bg": "#020617",
+            "primary": "#38bdf8",
+            "accent": "#818cf8",
+            "sidebar_text": "#38bdf8",
+            "input_bg": "#1e293b",
+            "input_text": "#f8fafc"
         }
     }
     
@@ -147,6 +158,18 @@ def apply_custom_theme(theme_choice):
             background-attachment: fixed !important;
             color: {t['text']} !important;
         }}
+        
+        {"""
+        h1, h2, h3, .stHeader {
+            background: linear-gradient(90deg, #38bdf8, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+        }
+        [data-testid="stMetricValue"] {
+            color: #38bdf8 !important;
+        }
+        """ if theme_choice == "Antigravity Dark 🌌" else ""}
         
         /* Typography Fixes */
         [data-testid="stHeader"] {{
@@ -789,9 +812,10 @@ with st.sidebar:
 
     # Thème & Déconnexion
     with st.expander("🎨 Personnalisation", expanded=False):
+        theme_list = ["Clair Modern ❄️", "Sombre Élite 🌙", "Émeraude Royal 👑", "Aurore Boréale 🌌", "Cyberpunk ⚡", "Antigravity Dark 🌌"]
         new_theme = st.selectbox("Changer l'ambiance", 
-                                ["Clair Modern ❄️", "Sombre Élite 🌙", "Émeraude Royal 👑", "Aurore Boréale 🌌", "Cyberpunk ⚡"], 
-                                index=["Clair Modern ❄️", "Sombre Élite 🌙", "Émeraude Royal 👑", "Aurore Boréale 🌌", "Cyberpunk ⚡"].index(st.session_state.theme))
+                                theme_list, 
+                                index=theme_list.index(st.session_state.theme))
         if new_theme != st.session_state.theme:
             st.session_state.theme = new_theme
             st.rerun()
