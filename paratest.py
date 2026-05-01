@@ -1160,17 +1160,94 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
                         save_data(df_para)
                         st.success("Modifications enregistrées !")
                         st.rerun()
-                    
+
                     if col_btn2.form_submit_button("❌ Supprimer le produit", use_container_width=True):
                         df_para = df_para.drop(p_idx)
                         save_data(df_para)
                         st.warning("Produit supprimé.")
                         st.rerun()
 
+    # --- ONGLET : PANIER / COMMANDES ---
+    if "🛒 Mon Panier" in t_tabs_names or "🛒 Commandes Client" in t_tabs_names:
+        idx_p = t_tabs_names.index("🛒 Mon Panier") if "🛒 Mon Panier" in t_tabs_names else t_tabs_names.index("🛒 Commandes Client")
+        with tabs[idx_p]:
+            st.subheader("🛒 Gestion du Panier & Proforma")
+            if not st.session_state.cart:
+                st.info("Le panier est vide.")
+            else:
+                st.subheader("Articles dans votre panier")
+                items_to_del = []
+                total_cmd = 0
+                for k, v in st.session_state.cart.items():
+                    col1, col2, col3, col4 = st.columns([3, 2, 2, 1])
+                    col1.write(f"**{k}**")
+                    col2.number_input("Quantité", min_value=1, value=v['qty'], key=f"edit_q_{k}", on_change=update_cart_qty, args=(k, f"edit_q_{k}"))
+                    line_total = v['price'] * v['qty']
+                    col3.write(f"{line_total:,.2f} DA")
+                    total_cmd += line_total
+                    if col4.button("🗑️", key=f"del_v_{k}"): items_to_del.append(k)
+                for item in items_to_del:
+                    del st.session_state.cart[item]
+                    st.rerun()
+                st.divider()
+                st.subheader(f"Total Proforma : {total_cmd:,.2f} DA")
+                c1, c2, c3 = st.columns(3)
+                if c1.button("🗑️ Vider le panier", type="primary", key="clear_cart_tab", use_container_width=True):
+                    st.session_state.cart = {}
+                    st.rerun()
+                inv_pdf = generate_invoice(st.session_state.cart, total_cmd)
+                c2.download_button("📄 Facture Proforma PDF", inv_pdf, f"Proforma_{datetime.now().strftime('%Y%m%d')}.pdf", "application/pdf", use_container_width=True)
+                msg_cart = f"Bonjour Pharmaciel, voici ma commande (Proforma) :\n" + "\n".join([f"- {k} (x{v['qty']}) : {v['price']*v['qty']} DA" for k,v in st.session_state.cart.items()])
+                if c3.button("✅ Valider & WhatsApp", key="whatsapp_tab", use_container_width=True):
+                    st.balloons()
+                    save_sale(st.session_state.cart, total_cmd, st.session_state.current_user)
+                    st.success("🚀 Commande validée avec succès !")
+                    st.link_button("Ouvrir WhatsApp", f"https://wa.me/?text={urllib.parse.quote(msg_cart)}")
+
+    # --- ONGLET : ENGAGEMENT & SUPPORT ---
+    support_label = next((n for n in t_tabs_names if "🤝" in n), None)
+    if support_label:
+        with tabs[t_tabs_names.index(support_label)]:
+            colored_header(label="🤝 Engagement & Support", description="Nous sommes à votre écoute", color_name="blue-70")
+            c_s1, c_s2 = st.columns([2, 1])
+            with c_s1:
+                st.subheader("❓ FAQ")
+                with st.expander("🛡️ Authenticité des produits", expanded=True):
+                    st.write("Tous nos produits proviennent directement des laboratoires officiels. Nous garantissons 100% d'authenticité.")
+                with st.expander("🚚 Livraison & Délais"):
+                    st.write("Livraison nationale disponible dans les 58 Wilayas via nos partenaires logistiques.")
+                with st.expander("💳 Modes de paiement"):
+                    st.write("Espèces à la livraison, BaridiMob ou Virement bancaire.")
+                
+                st.divider()
+                st.subheader("⭐ Avis Clients")
+                avis_data = [
+                    {"n": "Amine B.", "v": "⭐⭐⭐⭐⭐", "t": "Service très professionnel et rapide."},
+                    {"n": "Sarah M.", "v": "⭐⭐⭐⭐⭐", "t": "Produits conformes et bien emballés."}
+                ]
+                for a in avis_data:
+                    with st.container(border=True):
+                        st.markdown(f"**{a['n']}** {a['v']}")
+                        st.write(f"_{a['t']}_")
+            
+            with c_s2:
+                st.subheader("📞 Contact Direct")
+                st.info("Besoin d'un conseil santé ?")
+                st.link_button("💬 WhatsApp Conseil", "https://wa.me/213550000000", use_container_width=True)
+                
+                st.divider()
+                st.write("**Horaires :**")
+                st.write("Samedi - Jeudi : 08:30 - 18:00")
+                
+                st.divider()
+                st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/V_C_R_G_logo.png/800px-V_C_R_G_logo.png", width=100)
+                st.caption("Pharmaciel Pro © 2026")
+
+
+
 # --- ONGLET 2 : STATISTIQUES ---
 elif menu == "📊 Statistiques":
     st.title("📊 Analyse Pharmaciel")
-    
     total_produits = len(df_para)
     img_ok = df_para[df_para['image_path'].str.len() > 3].shape[0]
     valeur_stock = (df_para['PPA'] * df_para['Quantité']).sum()
@@ -1187,7 +1264,6 @@ elif menu == "📊 Statistiques":
     c_stats[3 % n_cols_stats].metric("Alertes Stock", stock_bas, delta=-stock_bas, delta_color="inverse")
     
     if st.session_state.user_role == "Responsable":
-        # Analyse Financière
         st.divider()
         st.subheader("💰 Performance Financière")
         df_sales = pd.read_csv(SALES_DB) if os.path.exists(SALES_DB) else pd.DataFrame()
@@ -1197,135 +1273,19 @@ elif menu == "📊 Statistiques":
             col_f1, col_f2 = st.columns(2)
             col_f1.metric("Chiffre d'Affaires Cumulé", f"{ca_total:,.0f} DA")
             col_f2.metric("Nombre de Ventes", nb_ventes)
-            
-            st.write("**Évolution des Ventes (CA)**")
-            df_sales['Date'] = pd.to_datetime(df_sales['Date'])
-            df_sales_daily = df_sales.set_index('Date').resample('D')['Total'].sum()
-            st.line_chart(df_sales_daily)
         else:
             st.info("Aucune vente enregistrée pour le moment.")
     
     st.divider()
-    
     col_chart1, col_chart2 = st.columns(2)
     with col_chart1:
         st.subheader("📦 Top 10 Laboratoires")
         labo_counts = df_para['Laboratoire'].value_counts().head(10)
         st.bar_chart(labo_counts)
-    
     with col_chart2:
         st.subheader("🏷️ Répartition par Famille")
         famille_counts = df_para['Famille'].value_counts()
         st.bar_chart(famille_counts)
-
-    if "🛒 Mon Panier" in t_tabs_names or "🛒 Commandes Client" in t_tabs_names:
-        idx_p = t_tabs_names.index("🛒 Mon Panier") if "🛒 Mon Panier" in t_tabs_names else t_tabs_names.index("🛒 Commandes Client")
-        with tabs[idx_p]:
-            st.subheader("🛒 Gestion du Panier & Proforma")
-            if not st.session_state.cart:
-                st.info("Le panier est vide.")
-            else:
-                # Interface de modification des quantités
-                st.subheader("Articles dans votre panier")
-                items_to_del = []
-                total_cmd = 0
-                
-                for k, v in st.session_state.cart.items():
-                    col1, col2, col3, col4 = st.columns([3, 2, 2, 1])
-                    col1.write(f"**{k}**")
-                    col2.number_input("Quantité", min_value=1, value=v['qty'], key=f"edit_q_{k}", on_change=update_cart_qty, args=(k, f"edit_q_{k}"))
-                    
-                    line_total = v['price'] * v['qty']
-                    col3.write(f"{line_total:,.2f} DA")
-                    total_cmd += line_total
-                    
-                    if col4.button("🗑️", key=f"del_v_{k}"):
-                        items_to_del.append(k)
-                
-                for item in items_to_del:
-                    del st.session_state.cart[item]
-                    st.rerun()
-                    
-                st.divider()
-                st.subheader(f"Total Proforma : {total_cmd:,.2f} DA")
-                
-                c1, c2, c3 = st.columns(3)
-                if c1.button("🗑️ Vider le panier", type="primary", key="clear_cart_tab", use_container_width=True):
-                    st.session_state.cart = {}
-                    st.rerun()
-                
-                inv_pdf = generate_invoice(st.session_state.cart, total_cmd)
-                c2.download_button("📄 Facture Proforma PDF", inv_pdf, f"Proforma_{datetime.now().strftime('%Y%m%d')}.pdf", "application/pdf", use_container_width=True)
-                
-                msg_cart = f"Bonjour Pharmaciel, voici ma commande (Proforma) :\n" + "\n".join([f"- {k} (x{v['qty']}) : {v['price']*v['qty']} DA" for k,v in st.session_state.cart.items()])
-                if c3.button("✅ Valider & WhatsApp", key="whatsapp_tab", use_container_width=True):
-                    st.balloons()
-                    save_sale(st.session_state.cart, total_cmd, st.session_state.current_user)
-                    st.success("🚀 Commande validée avec succès !")
-                    st.link_button("Ouvrir WhatsApp", f"https://wa.me/?text={urllib.parse.quote(msg_cart)}")
-
-    # --- ONGLET : ENGAGEMENT & SUPPORT ---
-    if "🤝 Support & Avis" in t_tabs_names or "🤝 Support Client" in t_tabs_names:
-        idx_s = t_tabs_names.index("🤝 Support & Avis") if "🤝 Support & Avis" in t_tabs_names else t_tabs_names.index("🤝 Support Client")
-        with tabs[idx_s]:
-            colored_header(label="🤝 Engagement & Support", description="Conseils, aide et témoignages", color_name="green-70")
-            
-            c_sup1, c_sup2 = st.columns([2, 1])
-            
-            with c_sup1:
-                st.subheader("❓ FAQ - Foire Aux Questions")
-                with st.expander("🛡️ Les produits sont-ils authentiques ?", expanded=True):
-                    st.write("Tous nos produits proviennent directement des laboratoires officiels ou de distributeurs agréés. Nous garantissons 100% d'authenticité.")
-                with st.expander("🚚 Livrez-vous dans les 58 Wilayas ?"):
-                    st.write("Oui, nous assurons une livraison nationale. Les délais varient de 24h (Alger, Blida) à 4-5 jours pour le Sud.")
-                with st.expander("💳 Quels sont les modes de paiement ?"):
-                    st.write("Paiement à la livraison (Cash on Delivery) ou via virement BaridiMob / CCP.")
-                with st.expander("💊 Comment utiliser l'assistant IA ?"):
-                    st.write("Cliquez sur 'Détails' d'un produit, puis posez votre question dans l'encadré 'Assistant Expert'. Il vous conseillera sur l'utilisation et les bienfaits.")
-
-                st.divider()
-                st.subheader("⭐ Avis de nos Clients")
-                
-                # Simulation d'avis clients
-                avis = [
-                    {"nom": "Amine B.", "note": "⭐⭐⭐⭐⭐", "comm": "Service impeccable et livraison très rapide ! Je recommande."},
-                    {"nom": "Sarah M.", "note": "⭐⭐⭐⭐⭐", "comm": "Les produits sont authentiques et l'assistant IA m'a bien aidée."},
-                    {"nom": "Karim T.", "note": "⭐⭐⭐⭐", "comm": "Très bon choix de produits, il manquait juste une référence mais le support a été top."}
-                ]
-                
-                for a in avis:
-                    with st.container(border=True):
-                        st.markdown(f"**{a['nom']}** {a['note']}")
-                        st.write(f"_{a['comm']}_")
-                
-                add_vertical_space(2)
-                with st.expander("📝 Laisser un avis"):
-                    with st.form("form_avis"):
-                        n_avis = st.text_input("Votre nom")
-                        m_avis = st.text_area("Votre témoignage")
-                        s_avis = st.slider("Note", 1, 5, 5)
-                        if st.form_submit_button("Envoyer mon avis"):
-                            st.success("Merci ! Votre avis sera affiché après modération.")
-                            add_log("Nouveau Témoignage", f"De: {n_avis}")
-            
-            with c_sup2:
-                st.subheader("📞 Contact & Réseaux")
-                st.info("Experts à votre écoute")
-                st.link_button("💬 WhatsApp Conseil", "https://wa.me/213550000000", use_container_width=True)
-                
-                add_vertical_space(1)
-                st.write("**Suivez-nous :**")
-                mention(label="Instagram", icon="camera", url="https://instagram.com")
-                mention(label="Facebook", icon="facebook", url="https://facebook.com")
-                
-                st.divider()
-                st.subheader("🕒 Horaires d'écoute")
-                st.write("Samedi - Jeudi : 08:30 - 18:00")
-                st.write("Vendredi : Support WhatsApp uniquement")
-                
-                st.divider()
-                st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/V_C_R_G_logo.png/800px-V_C_R_G_logo.png", width=100)
-                st.caption("Pharmaciel Pro © 2026")
 
 # --- ONGLET 3 : ADMIN ---
 elif menu == "⚙️ Admin":
