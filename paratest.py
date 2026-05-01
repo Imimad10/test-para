@@ -13,6 +13,7 @@ from reportlab.lib import colors
 import io
 import json
 import google.generativeai as genai
+from PIL import Image as PILImage, ImageOps
 from streamlit_extras.colored_header import colored_header
 from streamlit_extras.mention import mention
 from streamlit_extras.add_vertical_space import add_vertical_space
@@ -512,6 +513,21 @@ def clean_filename(text):
     if pd.isna(text): return ""
     return re.sub(r'\W+', '_', str(text).strip()).upper()
 
+def resize_and_save_image(uploaded_file, target_path, size=(800, 800)):
+    try:
+        from PIL import Image as PILImage, ImageOps
+        img = PILImage.open(uploaded_file)
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+        img = ImageOps.fit(img, size, PILImage.Resampling.LANCZOS)
+        if not target_path.lower().endswith('.jpg'):
+            target_path = os.path.splitext(target_path)[0] + ".jpg"
+        img.save(target_path, "JPEG", quality=85)
+        return os.path.basename(target_path)
+    except Exception as e:
+        st.error(f"Erreur de traitement image : {e}")
+        return None
+
 def get_image_base64(filename):
     if not filename or str(filename).lower() in ['nan', '']: return None
     path = os.path.join(IMG_DIR, str(filename).strip())
@@ -872,7 +888,13 @@ def show_details(row):
                                 response = model.generate_content(prompt)
                                 r = response.text
                             except Exception as e:
-                                r = f"Erreur IA : {str(e)} (Vérifiez votre clé API dans l'onglet Admin)."
+                                e_str = str(e)
+                                if "429" in e_str:
+                                    r = "⚠️ **Limite de quota atteinte** : Le service AI est très sollicité ou vous utilisez une clé gratuite limitée. Veuillez patienter 60 secondes ou vérifiez vos quotas sur Google AI Studio."
+                                elif "403" in e_str or "API_KEY_INVALID" in e_str:
+                                    r = "⚠️ **Clé API Invalide** : La clé configurée dans l'onglet Admin n'est pas reconnue par Google. Assurez-vous qu'elle est correcte."
+                                else:
+                                    r = f"Erreur IA : {e_str} (Vérifiez votre clé API dans l'onglet Admin)."
                         else:
                             # Logique de secours améliorée
                             u_q = user_q.lower()
@@ -1034,14 +1056,15 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
                     
                     c1, c2 = st.columns(2)
                     with c1:
-                        uploaded_file = st.file_uploader("Charger une photo", type=['png', 'jpg', 'jpeg'], key="single_up")
+                        uploaded_file = st.file_uploader("Charger une photo (Sera redimensionnée 800x800)", type=['png', 'jpg', 'jpeg'], key="single_up")
                         if uploaded_file and st.button("💾 Lier cette image"):
-                            fname = f"{clean_filename(sel_prod)}.{uploaded_file.name.split('.')[-1]}"
-                            with open(os.path.join(IMG_DIR, fname), "wb") as f: f.write(uploaded_file.getbuffer())
-                            df_para.loc[df_para['Produit'] == sel_prod, 'image_path'] = fname
-                            save_data(df_para)
-                            st.success(f"Image liée à {sel_prod}")
-                            st.rerun()
+                            fname = f"{clean_filename(sel_prod)}.jpg"
+                            saved_name = resize_and_save_image(uploaded_file, os.path.join(IMG_DIR, fname))
+                            if saved_name:
+                                df_para.loc[df_para['Produit'] == sel_prod, 'image_path'] = saved_name
+                                save_data(df_para)
+                                st.success(f"Image 800x800 liée à {sel_prod}")
+                                st.rerun()
                     with c2:
                         st.info("Recherche rapide")
                         st.link_button("🌐 Chercher sur Google Images", f"https://www.google.com/search?tbm=isch&q={sel_prod.replace(' ','+')}")
@@ -1071,14 +1094,15 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
                     
                     with col_m2:
                         st.write("📤 Remplacer / Ajouter")
-                        new_up = st.file_uploader("Nouvelle image", type=['png', 'jpg', 'jpeg'], key="replace_up")
+                        new_up = st.file_uploader("Nouvelle image (Auto-resize 800x800)", type=['png', 'jpg', 'jpeg'], key="replace_up")
                         if new_up and st.button("💾 Enregistrer la nouvelle image"):
-                            fname = f"{clean_filename(sel_prod)}.{new_up.name.split('.')[-1]}"
-                            with open(os.path.join(IMG_DIR, fname), "wb") as f: f.write(new_up.getbuffer())
-                            df_para.loc[df_para['Produit'] == sel_prod, 'image_path'] = fname
-                            save_data(df_para)
-                            st.success("Image mise à jour !")
-                            st.rerun()
+                            fname = f"{clean_filename(sel_prod)}.jpg"
+                            saved_name = resize_and_save_image(new_up, os.path.join(IMG_DIR, fname))
+                            if saved_name:
+                                df_para.loc[df_para['Produit'] == sel_prod, 'image_path'] = saved_name
+                                save_data(df_para)
+                                st.success("Image mise à jour en 800x800 !")
+                                st.rerun()
             
             else: # IMPORT GROUPÉ
                 st.info("💡 **Astuce** : Nommez vos images exactement comme vos produits (ex: `DOLIPRANE.jpg`). Le système les liera automatiquement !")
@@ -1091,10 +1115,11 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
                         clean_guess = clean_filename(prod_name_guess)
                         match = df_para[df_para['Produit'].apply(clean_filename) == clean_guess]
                         if not match.empty:
-                            fname = f"{clean_guess}.{f.name.split('.')[-1]}"
-                            with open(os.path.join(IMG_DIR, fname), "wb") as out: out.write(f.getbuffer())
-                            df_para.loc[df_para['Produit'].apply(clean_filename) == clean_guess, 'image_path'] = fname
-                            count += 1
+                            fname = f"{clean_guess}.jpg"
+                            saved_name = resize_and_save_image(f, os.path.join(IMG_DIR, fname))
+                            if saved_name:
+                                df_para.loc[df_para['Produit'].apply(clean_filename) == clean_guess, 'image_path'] = saved_name
+                                count += 1
                     save_data(df_para)
                     st.success(f"✅ {count} images liées automatiquement !")
                     add_log("Import Groupé Images", f"{count} images")
