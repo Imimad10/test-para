@@ -664,9 +664,9 @@ with st.sidebar:
     
     # Navigation
     if st.session_state.user_role == "Client":
-        nav_options = ["📦 Catalogue", "🛒 Mon Panier"]
+        nav_options = ["📦 Boutique"]
     else:
-        nav_options = ["📦 Stock & Catalogue", "🛒 Commandes Client", "📊 Statistiques"]
+        nav_options = ["📦 Gestion & Boutique", "📊 Statistiques"]
         if st.session_state.user_role == "Responsable": nav_options.append("⚙️ Admin")
     
     menu = st.radio("Navigation", nav_options)
@@ -832,14 +832,14 @@ def show_details(row):
                         st.chat_message("assistant").write(f"✨ **Réponse de l'expert :** {r}")
                         add_log("Question IA", f"Produit: {row['Produit']} | Q: {user_q}")
 
-# --- ONGLET 1 : CATALOGUE ---
-if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
-    st.title("📦 Catalogue Produits" if st.session_state.user_role == "Client" else "📦 Gestion Dépôt")
+# --- ONGLET 1 : CATALOGUE & PANIER ---
+if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
+    st.title("📦 Espace Commercial")
     
     if st.session_state.user_role == "Client":
-        t_tabs_names = ["📋 Catalogue"]
+        t_tabs_names = ["📋 Catalogue", "🛒 Mon Panier"]
     else:
-        t_tabs_names = ["📋 Catalogue", "🖼️ Images & Web", "🔄 Sync Excel"]
+        t_tabs_names = ["📋 Catalogue", "🛒 Commandes Client", "🖼️ Images & Web", "🔄 Sync Excel"]
         if st.session_state.user_role == "Responsable": t_tabs_names.extend(["➕ Ajout", "✏️ Modif/Suppr"])
     
     tabs = st.tabs(t_tabs_names)
@@ -869,7 +869,7 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
             search = st.selectbox("🔍 Rechercher un produit...", options=suggestions, index=None, placeholder="Tapez le nom d'un produit...")
         with c2:
             st.write("⚙️ **Options**")
-            tri_az = st.toggle("Tri A-Z")
+            tri_az = st.toggle("Tri A-Z", value=True)
             hide = st.toggle("Photos")
         
         filt = df_para.copy()
@@ -941,6 +941,17 @@ if menu in ["📦 Stock & Catalogue", "📦 Catalogue"]:
                                         st.session_state.cart[row['Produit']] = {'price': row['PPA'], 'qty': 1}
                                     st.toast(f"Ajouté : {row['Produit']}")
                                     st.rerun()
+            
+            # --- PAGINATION BAS DE PAGE ---
+            st.divider()
+            col_page_b1, col_page_b2, col_page_b3 = st.columns([1, 3, 1])
+            if col_page_b1.button("⬅️ Précédent", key="p_prev_bot", disabled=st.session_state.page <= 1, use_container_width=True):
+                st.session_state.page -= 1
+                st.rerun()
+            col_page_b2.markdown(f"<p style='text-align:center;'>Page <b>{st.session_state.page}</b> / {num_pages}</p>", unsafe_allow_html=True)
+            if col_page_b3.button("Suivant ➡️", key="p_next_bot", disabled=st.session_state.page >= num_pages, use_container_width=True):
+                st.session_state.page += 1
+                st.rerun()
 
     if "🖼️ Images & Web" in t_tabs_names:
         with tabs[t_tabs_names.index("🖼️ Images & Web")]:
@@ -1177,50 +1188,51 @@ elif menu == "📊 Statistiques":
         famille_counts = df_para['Famille'].value_counts()
         st.bar_chart(famille_counts)
 
-# --- ONGLET 3 : PANIER CLIENT (VUE DÉTAILLÉE) ---
-elif menu in ["🛒 Mon Panier", "🛒 Commandes Client"]:
-    st.title("🛒 Gestion du Panier & Proforma")
-    if not st.session_state.cart:
-        st.info("Le panier est vide.")
-    else:
-        # Interface de modification des quantités
-        st.subheader("Articles dans votre panier")
-        items_to_del = []
-        total_cmd = 0
-        
-        for k, v in st.session_state.cart.items():
-            col1, col2, col3, col4 = st.columns([3, 2, 2, 1])
-            col1.write(f"**{k}**")
-            col2.number_input("Quantité", min_value=1, value=v['qty'], key=f"edit_q_{k}", on_change=update_cart_qty, args=(k, f"edit_q_{k}"))
-            
-            line_total = v['price'] * v['qty']
-            col3.write(f"{line_total:,.2f} DA")
-            total_cmd += line_total
-            
-            if col4.button("🗑️", key=f"del_v_{k}"):
-                items_to_del.append(k)
-        
-        for item in items_to_del:
-            del st.session_state.cart[item]
-            st.rerun()
-            
-        st.divider()
-        st.subheader(f"Total Proforma : {total_cmd:,.2f} DA")
-        
-        c1, c2, c3 = st.columns(3)
-        if c1.button("🗑️ Vider le panier", type="primary", use_container_width=True):
-            st.session_state.cart = {}
-            st.rerun()
-        
-        inv_pdf = generate_invoice(st.session_state.cart, total_cmd)
-        c2.download_button("📄 Facture Proforma PDF", inv_pdf, f"Proforma_{datetime.now().strftime('%Y%m%d')}.pdf", "application/pdf", use_container_width=True)
-        
-        msg_cart = f"Bonjour Pharmaciel, voici ma commande (Proforma) :\n" + "\n".join([f"- {k} (x{v['qty']}) : {v['price']*v['qty']} DA" for k,v in st.session_state.cart.items()])
-        if c3.button("✅ Valider & WhatsApp", use_container_width=True):
-            st.balloons()
-            save_sale(st.session_state.cart, total_cmd, st.session_state.current_user)
-            st.success("🚀 Commande validée avec succès !")
-            st.link_button("Ouvrir WhatsApp", f"https://wa.me/?text={urllib.parse.quote(msg_cart)}")
+    if "🛒 Mon Panier" in t_tabs_names or "🛒 Commandes Client" in t_tabs_names:
+        idx_p = t_tabs_names.index("🛒 Mon Panier") if "🛒 Mon Panier" in t_tabs_names else t_tabs_names.index("🛒 Commandes Client")
+        with tabs[idx_p]:
+            st.subheader("🛒 Gestion du Panier & Proforma")
+            if not st.session_state.cart:
+                st.info("Le panier est vide.")
+            else:
+                # Interface de modification des quantités
+                st.subheader("Articles dans votre panier")
+                items_to_del = []
+                total_cmd = 0
+                
+                for k, v in st.session_state.cart.items():
+                    col1, col2, col3, col4 = st.columns([3, 2, 2, 1])
+                    col1.write(f"**{k}**")
+                    col2.number_input("Quantité", min_value=1, value=v['qty'], key=f"edit_q_{k}", on_change=update_cart_qty, args=(k, f"edit_q_{k}"))
+                    
+                    line_total = v['price'] * v['qty']
+                    col3.write(f"{line_total:,.2f} DA")
+                    total_cmd += line_total
+                    
+                    if col4.button("🗑️", key=f"del_v_{k}"):
+                        items_to_del.append(k)
+                
+                for item in items_to_del:
+                    del st.session_state.cart[item]
+                    st.rerun()
+                    
+                st.divider()
+                st.subheader(f"Total Proforma : {total_cmd:,.2f} DA")
+                
+                c1, c2, c3 = st.columns(3)
+                if c1.button("🗑️ Vider le panier", type="primary", key="clear_cart_tab", use_container_width=True):
+                    st.session_state.cart = {}
+                    st.rerun()
+                
+                inv_pdf = generate_invoice(st.session_state.cart, total_cmd)
+                c2.download_button("📄 Facture Proforma PDF", inv_pdf, f"Proforma_{datetime.now().strftime('%Y%m%d')}.pdf", "application/pdf", use_container_width=True)
+                
+                msg_cart = f"Bonjour Pharmaciel, voici ma commande (Proforma) :\n" + "\n".join([f"- {k} (x{v['qty']}) : {v['price']*v['qty']} DA" for k,v in st.session_state.cart.items()])
+                if c3.button("✅ Valider & WhatsApp", key="whatsapp_tab", use_container_width=True):
+                    st.balloons()
+                    save_sale(st.session_state.cart, total_cmd, st.session_state.current_user)
+                    st.success("🚀 Commande validée avec succès !")
+                    st.link_button("Ouvrir WhatsApp", f"https://wa.me/?text={urllib.parse.quote(msg_cart)}")
 
 # --- ONGLET 3 : ADMIN ---
 elif menu == "⚙️ Admin":
