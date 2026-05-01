@@ -594,12 +594,54 @@ def generate_pdf_catalogue(df):
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('LEFTPADDING', (0, 0), (-1, -1), 5),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 5),
-        ('TOPPADDING', (0, 0), (-1, -1), 5),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
     ]))
     elements.append(t)
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
+
+def generate_proforma_pdf(cart_dict, client_name="Client"):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=40)
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    # En-tête
+    header = Paragraph(f"<b>DEVIS / BON DE COMMANDE</b>", styles['Title'])
+    elements.append(header)
+    elements.append(Paragraph(f"<b>Date :</b> {datetime.now().strftime('%d/%m/%Y %H:%M')}", styles['Normal']))
+    elements.append(Paragraph(f"<b>Destinataire :</b> {client_name}", styles['Normal']))
+    elements.append(Spacer(1, 20))
+    
+    # Table
+    data = [["Désignation", "Quantité", "Prix Unit. (DA)", "Total (DA)"]]
+    total_gr = 0
+    for p, d in cart_dict.items():
+        sub = d['qty'] * d['price']
+        data.append([p, str(d['qty']), f"{d['price']:,.2f}", f"{sub:,.2f}"])
+        total_gr += sub
+    
+    t = Table(data, colWidths=[240, 60, 100, 100])
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.black),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+        ('ALIGN', (1,0), (-1,-1), 'CENTER'),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.black),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+        ('TOPPADDING', (0,0), (-1,-1), 10),
+    ]))
+    elements.append(t)
+    elements.append(Spacer(1, 20))
+    
+    # Total
+    total_style = styles['Heading2']
+    total_style.alignment = 2 # Right
+    elements.append(Paragraph(f"TOTAL NET : {total_gr:,.2f} DA", total_style))
+    
+    elements.append(Spacer(1, 50))
+    elements.append(Paragraph("Document généré par Pharmaciel Pro. Validité : 7 jours.", styles['Normal']))
+    
     doc.build(elements)
     buffer.seek(0)
     return buffer
