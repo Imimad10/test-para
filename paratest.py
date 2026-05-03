@@ -138,6 +138,17 @@ def apply_custom_theme(theme_choice):
             "sidebar_text": "#38bdf8",
             "input_bg": "#1e293b",
             "input_text": "#f8fafc"
+        },
+        "Pharmaciel Premium 💊": {
+            "bg": "linear-gradient(135deg, #0e1117 0%, #1c1f26 100%)",
+            "card_bg": "rgba(30, 33, 48, 0.7)",
+            "text": "#fafafa",
+            "sidebar_bg": "#11141c",
+            "primary": "#ff4b4b",
+            "accent": "#cc3b3b",
+            "sidebar_text": "#fafafa",
+            "input_bg": "#1e2130",
+            "input_text": "#fafafa"
         }
     }
     
@@ -809,7 +820,7 @@ with st.sidebar:
 
     # Thème & Déconnexion
     with st.expander("🎨 Personnalisation", expanded=False):
-        theme_list = ["Clair Modern ❄️", "Sombre Élite 🌙", "Émeraude Royal 👑", "Aurore Boréale 🌌", "Cyberpunk ⚡", "Antigravity Dark 🌌"]
+        theme_list = ["Clair Modern ❄️", "Sombre Élite 🌙", "Émeraude Royal 👑", "Aurore Boréale 🌌", "Cyberpunk ⚡", "Antigravity Dark 🌌", "Pharmaciel Premium 💊"]
         new_theme = st.selectbox("Changer l'ambiance", 
                                 theme_list, 
                                 index=theme_list.index(st.session_state.theme))
