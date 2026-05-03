@@ -835,6 +835,24 @@ with st.sidebar:
         st.rerun()
 
 # --- DIALOGUE DÉTAILS ---
+@st.dialog("📸 Ajouter une Photo Rapide")
+def add_photo_dialog(product_name):
+    st.write(f"Ajouter une image pour : **{product_name}**")
+    up = st.file_uploader("Choisir une image (800x800 auto)", type=['png','jpg','jpeg'])
+    if st.button("💾 Enregistrer l'image", use_container_width=True):
+        if up:
+            fname = f"{clean_filename(product_name)}.jpg"
+            saved_name = resize_and_save_image(up, os.path.join(IMG_DIR, fname))
+            if saved_name:
+                # On recharge la DB pour être sûr
+                df_temp = load_data()
+                df_temp.loc[df_temp['Produit'] == product_name, 'image_path'] = saved_name
+                save_data(df_temp)
+                st.success("Image liée avec succès !")
+                st.rerun()
+        else:
+            st.error("Veuillez sélectionner un fichier.")
+
 @st.dialog("Fiche Produit", width="large")
 def show_details(row):
     # Responsive columns for dialog
@@ -1041,7 +1059,14 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
                         with cols[j]:
                             with st.container(border=True):
                                 img = get_image_base64(row['image_path'])
-                                if img: st.image(img, use_container_width=True)
+                                if img: 
+                                    st.image(img, use_container_width=True)
+                                else:
+                                    if st.session_state.user_role != "Client":
+                                        if st.button("📸 Ajouter Photo", key=f"btn_add_img_{start_idx+i+j}", use_container_width=True):
+                                            add_photo_dialog(row['Produit'])
+                                    else:
+                                        st.warning("Pas d'image")
                                 
                                 # Badges compacts
                                 badge_html = ""
