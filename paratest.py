@@ -161,9 +161,7 @@ def apply_custom_theme(theme_choice):
         
         {"""
         h1, h2, h3, .stHeader {
-            background: linear-gradient(90deg, #38bdf8, #818cf8, #c084fc);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: #38bdf8 !important;
             font-weight: 700;
         }
         [data-testid="stMetricValue"] {
@@ -338,9 +336,7 @@ def apply_custom_theme(theme_choice):
         h1, h2, h3 {{
             font-weight: 700 !important;
             letter-spacing: -1px;
-            background: linear-gradient(90deg, {t['primary']}, {t['accent']});
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: {t['primary']} !important;
             margin-bottom: 0.5rem !important;
         }}
         
