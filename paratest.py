@@ -706,6 +706,8 @@ def login():
         except: pass
 
     if not st.session_state.auth:
+        if os.path.exists("logo.png"):
+            st.image("logo.png", width=150)
         st.title("🔐 Pharmaciel Pro")
         st.success("👋 Vous êtes client ? Accédez directement à notre catalogue sans identifiant.")
         if st.button("🌐 VOIR LE CATALOGUE PRODUITS", type="primary", use_container_width=True):
@@ -744,6 +746,8 @@ df_para = load_data()
 
 # --- SIDEBAR : NAVIGATION & FILTRES ---
 with st.sidebar:
+    if os.path.exists("logo.png"):
+        st.image("logo.png", use_container_width=True)
     st.markdown(f"## 👤 {st.session_state.current_user}")
     if st.session_state.user_role != "Client":
         st.write(f"Rôle : **{st.session_state.user_role}**")
