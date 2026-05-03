@@ -41,6 +41,31 @@ def save_settings(settings):
     with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
         json.dump(settings, f, ensure_ascii=False, indent=4)
 
+def sync_to_github(message="Mise à jour via interface"):
+    """Tente de persister les fichiers sur GitHub pour éviter la perte sur Streamlit Cloud."""
+    try:
+        import subprocess
+        # Config minimale pour commit
+        subprocess.run(["git", "config", "user.email", "imad@pharmaciel.dz"], capture_output=True)
+        subprocess.run(["git", "config", "user.name", "Pharmaciel Admin"], capture_output=True)
+        
+        # Ajout des fichiers critiques
+        subprocess.run(["git", "add", "images_stock/", "database_para.csv", "users.csv", "db_pharmaciel.json"], capture_output=True)
+        subprocess.run(["git", "commit", "-m", message], capture_output=True)
+        
+        # Tentative de push (Nécessite que l'environnement ait les droits, 
+        # souvent le cas si déployé via GitHub avec accès write)
+        res = subprocess.run(["git", "push", "origin", "main"], capture_output=True, text=True)
+        
+        if res.returncode == 0:
+            return True, "✅ Données sauvegardées définitivement sur GitHub !"
+        else:
+            if "Authentication failed" in res.stderr or "Permission denied" in res.stderr:
+                return False, "❌ Erreur : GitHub refuse l'écriture. Configurez un Token d'accès (Secrets)."
+            return False, f"⚠️ Erreur Git : {res.stderr}"
+    except Exception as e:
+        return False, f"❌ Erreur système : {str(e)}"
+
 def add_log(action, details=""):
     user = st.session_state.get('current_user', 'Système')
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1214,7 +1239,18 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
 
     if "🔄 Sync Excel" in t_tabs_names:
         with tabs[t_tabs_names.index("🔄 Sync Excel")]:
-            st.subheader("🔄 Synchronisation Base de Données")
+            st.subheader("🔄 Synchronisation & Persistance")
+            
+            # --- NOUVEAU : BOUTON DE SAUVEGARDE GITHUB ---
+            st.markdown("### 💾 Sauvegarde Permanente")
+            st.warning("⚠️ Sur Streamlit Cloud, vos modifications (images, produits) sont perdues si l'app redémarre. Cliquez ci-dessous pour les enregistrer sur GitHub.")
+            if st.button("🚀 SAUVEGARDER TOUT SUR GITHUB (Permanent)", type="primary", use_container_width=True):
+                with st.spinner("Synchronisation avec GitHub en cours..."):
+                    success, msg = sync_to_github("Sauvegarde manuelle utilisateur")
+                    if success: st.success(msg)
+                    else: st.error(msg)
+            
+            st.divider()
             st.info("Importez votre fichier Excel (format Dépôt, Produit, Quantité Dépot, DDP, PPA, Labo, Arrivage).")
             
             up_excel = st.file_uploader("Choisir le fichier Excel/CSV", type=['xlsx', 'csv'])
