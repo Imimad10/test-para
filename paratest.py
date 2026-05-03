@@ -147,11 +147,11 @@ def apply_custom_theme(theme_choice):
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Orbitron:wght@400;700&display=swap');
         
-        html, body, [class*="css"] {{
-            font-family: 'Outfit', sans-serif;
-        }}
+        html, body, [class*="css"] {
+            font-family: 'Outfit', 'Segoe UI Emoji', sans-serif;
+        }
         
-        {".stApp { font-family: 'Orbitron', sans-serif !important; }" if theme_choice == "Cyberpunk ⚡" else ""}
+        {".stApp { font-family: 'Orbitron', 'Segoe UI Emoji', sans-serif !important; }" if theme_choice == "Cyberpunk ⚡" else ""}
 
         .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {{
             background: {t['bg']} !important;
@@ -422,7 +422,7 @@ def apply_custom_theme(theme_choice):
     
     st.markdown(f"""
     <a href="https://wa.me/{primary_wa}" class="whatsapp-float" target="_blank">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="35px">
+        <svg width="35" height="35" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M12.031 0C5.385 0 0 5.386 0 12.03c0 2.12.551 4.198 1.597 6.02L.031 24l6.105-1.603a11.972 11.972 0 0 0 5.895 1.543h.005c6.645 0 12.03-5.387 12.03-12.032C24.066 5.386 18.679 0 12.031 0zm0 21.968h-.005a9.963 9.963 0 0 1-5.075-1.378l-.364-.216-3.771.99.998-3.676-.237-.377a9.96 9.96 0 0 1-1.526-5.283c0-5.5 4.476-9.975 9.98-9.975 5.503 0 9.978 4.475 9.978 9.975s-4.475 9.975-9.978 9.975zm5.474-7.48c-.3-.15-1.776-.876-2.052-.976-.275-.101-.476-.15-.676.15-.2.302-.776.977-.951 1.177-.175.201-.351.226-.651.076a8.212 8.212 0 0 1-2.417-1.493 9.07 9.07 0 0 1-1.68-2.09c-.176-.301-.019-.464.131-.614.136-.135.301-.351.451-.526.151-.176.2-.301.302-.501.101-.201.05-.376-.025-.526-.075-.15-.676-1.63-.926-2.23-.243-.585-.49-.505-.676-.514-.175-.008-.376-.008-.576-.008s-.526.075-.801.376c-.275.301-1.052 1.028-1.052 2.508 0 1.48 1.077 2.91 1.227 3.111.15.2 2.122 3.238 5.14 4.542.718.309 1.278.494 1.716.632.72.228 1.375.195 1.894.118.58-.086 1.776-.726 2.026-1.428.25-.702.25-1.304.175-1.429-.075-.126-.275-.201-.575-.351z"/></svg>
     </a>
     """, unsafe_allow_html=True)
 
@@ -498,6 +498,7 @@ def load_data():
         # --- REGROUPEMENT ---
         agg_rules = {c: 'first' for c in df.columns if c not in ['Produit', 'PPA', 'Quantité']}
         agg_rules['Quantité'] = 'sum'
+        agg_rules['image_path'] = 'max'
         df = df.groupby(['Produit', 'PPA'], as_index=False).agg(agg_rules)
         
         return df.fillna("")
@@ -1072,15 +1073,17 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
                     
                     c1, c2 = st.columns(2)
                     with c1:
-                        uploaded_file = st.file_uploader("Charger une photo (Sera redimensionnée 800x800)", type=['png', 'jpg', 'jpeg'], key="single_up")
-                        if uploaded_file and st.button("💾 Lier cette image"):
-                            fname = f"{clean_filename(sel_prod)}.jpg"
-                            saved_name = resize_and_save_image(uploaded_file, os.path.join(IMG_DIR, fname))
-                            if saved_name:
-                                df_para.loc[df_para['Produit'] == sel_prod, 'image_path'] = saved_name
-                                save_data(df_para)
-                                st.success(f"Image 800x800 liée à {sel_prod}")
-                                st.rerun()
+                        with st.form("form_single_img", clear_on_submit=True):
+                            uploaded_file = st.file_uploader("Charger une photo (Sera redimensionnée 800x800)", type=['png', 'jpg', 'jpeg'], key="single_up")
+                            if st.form_submit_button("💾 Lier cette image"):
+                                if uploaded_file:
+                                    fname = f"{clean_filename(sel_prod)}.jpg"
+                                    saved_name = resize_and_save_image(uploaded_file, os.path.join(IMG_DIR, fname))
+                                    if saved_name:
+                                        df_para.loc[df_para['Produit'] == sel_prod, 'image_path'] = saved_name
+                                        save_data(df_para)
+                                        st.success(f"Image 800x800 liée à {sel_prod}")
+                                        st.rerun()
                     with c2:
                         st.info("Recherche rapide")
                         st.link_button("🌐 Chercher sur Google Images", f"https://www.google.com/search?tbm=isch&q={sel_prod.replace(' ','+')}")
@@ -1110,36 +1113,40 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
                     
                     with col_m2:
                         st.write("📤 Remplacer / Ajouter")
-                        new_up = st.file_uploader("Nouvelle image (Auto-resize 800x800)", type=['png', 'jpg', 'jpeg'], key="replace_up")
-                        if new_up and st.button("💾 Enregistrer la nouvelle image"):
-                            fname = f"{clean_filename(sel_prod)}.jpg"
-                            saved_name = resize_and_save_image(new_up, os.path.join(IMG_DIR, fname))
-                            if saved_name:
-                                df_para.loc[df_para['Produit'] == sel_prod, 'image_path'] = saved_name
-                                save_data(df_para)
-                                st.success("Image mise à jour en 800x800 !")
-                                st.rerun()
+                        with st.form("form_replace_img", clear_on_submit=True):
+                            new_up = st.file_uploader("Nouvelle image (Auto-resize 800x800)", type=['png', 'jpg', 'jpeg'], key="replace_up")
+                            if st.form_submit_button("💾 Enregistrer la nouvelle image"):
+                                if new_up:
+                                    fname = f"{clean_filename(sel_prod)}.jpg"
+                                    saved_name = resize_and_save_image(new_up, os.path.join(IMG_DIR, fname))
+                                    if saved_name:
+                                        df_para.loc[df_para['Produit'] == sel_prod, 'image_path'] = saved_name
+                                        save_data(df_para)
+                                        st.success("Image mise à jour en 800x800 !")
+                                        st.rerun()
             
             else: # IMPORT GROUPÉ
                 st.info("💡 **Astuce** : Nommez vos images exactement comme vos produits (ex: `DOLIPRANE.jpg`). Le système les liera automatiquement !")
-                bulk_files = st.file_uploader("Glissez toutes vos images ici", type=['png', 'jpg', 'jpeg'], accept_multiple_files=True)
-                
-                if bulk_files and st.button(f"🚀 Lier {len(bulk_files)} images"):
-                    count = 0
-                    for f in bulk_files:
-                        prod_name_guess = f.name.split('.')[0].upper().replace('_', ' ')
-                        clean_guess = clean_filename(prod_name_guess)
-                        match = df_para[df_para['Produit'].apply(clean_filename) == clean_guess]
-                        if not match.empty:
-                            fname = f"{clean_guess}.jpg"
-                            saved_name = resize_and_save_image(f, os.path.join(IMG_DIR, fname))
-                            if saved_name:
-                                df_para.loc[df_para['Produit'].apply(clean_filename) == clean_guess, 'image_path'] = saved_name
-                                count += 1
-                    save_data(df_para)
-                    st.success(f"✅ {count} images liées automatiquement !")
-                    add_log("Import Groupé Images", f"{count} images")
-                    st.rerun()
+                with st.form("form_bulk_img", clear_on_submit=True):
+                    bulk_files = st.file_uploader("Glissez toutes vos images ici", type=['png', 'jpg', 'jpeg'], accept_multiple_files=True)
+                    
+                    if st.form_submit_button(f"🚀 Lier les images sélectionnées"):
+                        if bulk_files:
+                            count = 0
+                            for f in bulk_files:
+                                prod_name_guess = f.name.split('.')[0].upper().replace('_', ' ')
+                                clean_guess = clean_filename(prod_name_guess)
+                                match = df_para[df_para['Produit'].apply(clean_filename) == clean_guess]
+                                if not match.empty:
+                                    fname = f"{clean_guess}.jpg"
+                                    saved_name = resize_and_save_image(f, os.path.join(IMG_DIR, fname))
+                                    if saved_name:
+                                        df_para.loc[df_para['Produit'].apply(clean_filename) == clean_guess, 'image_path'] = saved_name
+                                        count += 1
+                            save_data(df_para)
+                            st.success(f"✅ {count} images liées automatiquement !")
+                            add_log("Import Groupé Images", f"{count} images")
+                            st.rerun()
             
             st.divider()
             if st.button("🧹 Optimiseur : Supprimer les images inutilisées"):
@@ -1198,7 +1205,7 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
                         cols_to_drop = [c for c in ['image_path', 'image', 'photo'] if c in df_new.columns]
                         if cols_to_drop: df_new = df_new.drop(columns=cols_to_drop)
 
-                        df_img = df_para[['Produit', 'image_path']].drop_duplicates('Produit')
+                        df_img = df_para[['Produit', 'image_path']].sort_values('image_path', ascending=False).drop_duplicates('Produit')
                         merged = pd.merge(df_new, df_img, on='Produit', how='left')
                         merged['image_path'] = merged['image_path'].fillna("")
                         
@@ -1358,8 +1365,8 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
                 st.write("Samedi - Jeudi : 08:30 - 18:00")
                 
                 st.divider()
-                st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/V_C_R_G_logo.png/800px-V_C_R_G_logo.png", width=100)
-                st.caption("Pharmaciel Pro © 2026")
+                st.markdown("### 💊 Pharmaciel Pro")
+                st.caption("© 2026 - Tous droits réservés")
 
 
 
@@ -1534,3 +1541,50 @@ elif menu == "⚙️ Admin":
             if up_py:
                 with open(__file__, "wb") as f: f.write(up_py.getbuffer())
                 st.success("Système mis à jour !")
+        
+        st.divider()
+        st.subheader("☁️ Checkup Pictures & Sauvegarde GitHub")
+        st.info("Utilisez ces boutons pour synchroniser vos images avec le dépôt GitHub.")
+        col_g1, col_g2, col_g3 = st.columns(3)
+        
+        if col_g1.button("⬇️ Checkup (Récupérer de GitHub)", use_container_width=True):
+            with st.spinner("Vérification des nouvelles images sur GitHub..."):
+                import subprocess
+                try:
+                    res = subprocess.run(["git", "pull"], cwd=BASE_DIR, capture_output=True, text=True)
+                    st.success("Checkup terminé ! \n\n" + res.stdout)
+                except Exception as e:
+                    st.error(f"Erreur : {e}")
+                    
+        if col_g2.button("⬆️ Sauvegarder vers GitHub", use_container_width=True):
+            with st.spinner("Envoi des images et de la base de données vers GitHub..."):
+                import subprocess
+                try:
+                    subprocess.run(["git", "add", "images_stock/", "database_para.csv", "paratest.py"], cwd=BASE_DIR)
+                    subprocess.run(["git", "commit", "-m", f"Backup automatique via app le {datetime.now().strftime('%Y-%m-%d %H:%M')}"], cwd=BASE_DIR)
+                    res = subprocess.run(["git", "push"], cwd=BASE_DIR, capture_output=True, text=True)
+                    if "Everything up-to-date" in res.stdout or "Everything up-to-date" in res.stderr:
+                        st.info("Rien de nouveau à sauvegarder. Tout est à jour.")
+                    else:
+                        st.success("Backup GitHub réussi ! \n\n" + res.stdout + res.stderr)
+                except Exception as e:
+                    st.error(f"Erreur : {e}")
+
+        if col_g3.button("📦 Créer un ZIP (Images)", use_container_width=True):
+            with st.spinner("Création de l'archive ZIP..."):
+                import shutil
+                ts = datetime.now().strftime("%Y%m%d_%H%M")
+                zip_name = f"images_backup_{ts}"
+                zip_path = os.path.join(BASE_DIR, zip_name)
+                shutil.make_archive(zip_path, 'zip', IMG_DIR)
+                st.success(f"Archive créée : {zip_name}.zip")
+                
+                # Option to download the ZIP file directly
+                with open(f"{zip_path}.zip", "rb") as fp:
+                    st.download_button(
+                        label="⬇️ Télécharger le ZIP",
+                        data=fp,
+                        file_name=f"{zip_name}.zip",
+                        mime="application/zip",
+                        use_container_width=True
+                    )
