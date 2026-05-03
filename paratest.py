@@ -66,6 +66,21 @@ def sync_to_github(message="Mise à jour via interface"):
     except Exception as e:
         return False, f"❌ Erreur système : {str(e)}"
 
+def restore_from_github():
+    """Récupère la version la plus récente depuis GitHub (écrase les modifs locales non sauvegardées)."""
+    try:
+        import subprocess
+        # On force un reset pour être sûr d'avoir la version GitHub
+        subprocess.run(["git", "fetch", "origin"], capture_output=True)
+        res = subprocess.run(["git", "reset", "--hard", "origin/main"], capture_output=True, text=True)
+        
+        if res.returncode == 0:
+            return True, "✅ Restauration réussie ! Toutes les photos et données GitHub ont été récupérées."
+        else:
+            return False, f"⚠️ Erreur Restore : {res.stderr}"
+    except Exception as e:
+        return False, f"❌ Erreur système : {str(e)}"
+
 def add_log(action, details=""):
     user = st.session_state.get('current_user', 'Système')
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1248,6 +1263,14 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
                 with st.spinner("Synchronisation avec GitHub en cours..."):
                     success, msg = sync_to_github("Sauvegarde manuelle utilisateur")
                     if success: st.success(msg)
+                    else: st.error(msg)
+            
+            if st.button("🔄 RESTAURER DEPUIS GITHUB (Récupérer les photos)", type="secondary", use_container_width=True):
+                with st.spinner("Restauration en cours..."):
+                    success, msg = restore_from_github()
+                    if success: 
+                        st.success(msg)
+                        st.rerun()
                     else: st.error(msg)
             
             st.divider()
