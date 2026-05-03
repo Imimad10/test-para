@@ -147,9 +147,9 @@ def apply_custom_theme(theme_choice):
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Orbitron:wght@400;700&display=swap');
         
-        html, body, [class*="css"] {
+        html, body, [class*="css"] {{
             font-family: 'Outfit', 'Segoe UI Emoji', sans-serif;
-        }
+        }}
         
         {".stApp { font-family: 'Orbitron', 'Segoe UI Emoji', sans-serif !important; }" if theme_choice == "Cyberpunk ⚡" else ""}
 
