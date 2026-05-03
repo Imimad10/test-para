@@ -979,8 +979,25 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
         
         if filt.empty: 
             st.warning("⚠️ Aucun produit ne correspond à ces critères.")
-            if f_famille != "Toutes" or f_labo != "Tous" or f_alerte != "Aucune":
-                st.info("💡 Conseil : Vérifiez vos filtres dans la barre latérale (Laboratoire, Famille, etc.) car ils peuvent bloquer l'affichage.")
+            
+            # Diagnostic des filtres
+            active_filters = []
+            if f_famille != "Toutes": active_filters.append(f"Famille: {f_famille}")
+            if f_labo != "Tous": active_filters.append(f"Labo: {f_labo}")
+            if f_alerte != "Aucune": active_filters.append(f"Alerte: {f_alerte}")
+            if search: active_filters.append(f"Recherche: '{search}'")
+            if hide: active_filters.append("Option 'Photos' (affiche uniquement les produits avec images)")
+            
+            if active_filters:
+                st.info("💡 **Filtres actifs détectés :**\n- " + "\n- ".join(active_filters))
+                if st.button("🔄 Réinitialiser tous les filtres", type="primary", use_container_width=True):
+                    # On réinitialise les états via session_state si possible, ou on force un rerun sans filtres
+                    st.session_state.page = 1
+                    # Pour un reset complet, on peut vider les clés de widgets si elles existent
+                    # Ici on va juste suggérer d'utiliser le bouton de la sidebar ou rafraîchir
+                    st.rerun()
+            else:
+                st.error("🚨 La base de données semble vide ou n'a pas pu être chargée correctement.")
         else:
             # --- PAGINATION ---
             items_per_page = 12
