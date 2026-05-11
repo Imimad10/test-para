@@ -70,6 +70,30 @@ def get_gdrive_service():
         st.error(f"Erreur d'initialisation du service GDrive : {e}")
         return None
 
+@st.cache_resource
+def get_main_folder_id():
+    """Récupère l'ID du dossier PARAPHARM (par ID ou par Nom)."""
+    service = get_gdrive_service()
+    if not service: return None
+    
+    main_id = st.secrets.get("GDRIVE_FOLDER_ID", "1XalJubOiIDdpUIwCy6NFZeu3UliUU4Fb")
+    
+    # 1. Tentative par ID direct
+    try:
+        service.files().get(fileId=main_id, fields='id', supportsAllDrives=True).execute()
+        return main_id
+    except:
+        # 2. Fallback par Nom
+        try:
+            query = "mimeType='application/vnd.google-apps.folder' and name='PARAPHARM' and trashed=false"
+            results = service.files().list(q=query, spaces='drive', fields='files(id, name)', supportsAllDrives=True).execute()
+            folders = results.get('files', [])
+            if folders:
+                return folders[0]['id']
+        except:
+            pass
+    return None
+
 def find_or_create_folder(service, folder_name, parent_id=None):
     """Cherche un dossier par nom, s'il n'existe pas, le crée."""
     query = f"mimeType='application/vnd.google-apps.folder' and name='{folder_name}' and trashed=false"
@@ -155,24 +179,13 @@ def sync_to_gdrive(message=""):
     if not service: return False, "Service GDrive non initialisé."
     
     try:
-        # Vérifier l'accès au dossier
-        main_folder_id = GDRIVE_FOLDER_ID
-        
-        # Tentative d'accès direct
-        try:
-            service.files().get(fileId=main_folder_id, fields='id', supportsAllDrives=True).execute()
-        except Exception as e:
-            # Fallback : Recherche par nom "PARAPHARM"
-            query = "mimeType='application/vnd.google-apps.folder' and name='PARAPHARM' and trashed=false"
-            results = service.files().list(q=query, spaces='drive', fields='files(id, name)', supportsAllDrives=True).execute()
-            folders = results.get('files', [])
-            if folders:
-                main_folder_id = folders[0]['id']
-            else:
-                # Debug : Lister ce que le bot voit pour aider l'utilisateur
-                all_files = service.files().list(pageSize=10, fields='files(id, name)').execute().get('files', [])
-                visible = ", ".join([f['name'] for f in all_files]) if all_files else "Rien (Dossier non partagé ?)"
-                return False, f"❌ Accès refusé. Le bot ne voit que : {visible}. Assurez-vous d'avoir partagé le dossier PARAPHARM avec l'email du bot."
+        # Récupérer l'ID du dossier racine (Auto-Discovery)
+        main_folder_id = get_main_folder_id()
+        if not main_folder_id:
+            # Debug : Lister ce que le bot voit pour aider l'utilisateur
+            all_files = service.files().list(pageSize=10, fields='files(id, name)').execute().get('files', [])
+            visible = ", ".join([f['name'] for f in all_files]) if all_files else "Rien (Dossier non partagé ?)"
+            return False, f"❌ Accès refusé. Le bot ne voit que : {visible}. Assurez-vous d'avoir partagé le dossier PARAPHARM avec l'email du bot."
             
         # Trouver ou créer le dossier image_stock
         images_folder_id = find_or_create_folder(service, "image_stock", parent_id=main_folder_id)
@@ -200,22 +213,9 @@ def restore_from_gdrive():
     if not service: return False, "Service GDrive non initialisé."
     
     try:
-        main_folder_id = GDRIVE_FOLDER_ID
-        try:
-            service.files().get(fileId=main_folder_id, fields='id').execute()
-        except Exception as e:
-            if "404" in str(e):
-                return False, "❌ Dossier racine introuvable ou accès refusé. Vérifiez que vous avez partagé le dossier GDrive avec l'email de votre bot Google (en tant qu'Éditeur)."
-            return False, f"❌ Erreur accès GDrive : {e}"
-            
-        if main_folder_id == "VOTRE_ID_DE_DOSSIER_GDRIVE_ICI":
-            # On cherche le dossier par nom
-            query = f"mimeType='application/vnd.google-apps.folder' and name='Test_Para_Data' and trashed=false"
-            results = service.files().list(q=query, spaces='drive', fields='files(id, name)').execute()
-            items = results.get('files', [])
-            if not items:
-                return False, "Le dossier Test_Para_Data est introuvable sur GDrive."
-            main_folder_id = items[0].get('id')
+        main_folder_id = get_main_folder_id()
+        if not main_folder_id:
+            return False, "❌ Dossier racine introuvable. Vérifiez que vous avez partagé le dossier PARAPHARM avec l'email du bot."
             
         # Télécharger la base de données et utilisateurs
         db_id = get_remote_file_id(service, os.path.basename(DB_PATH), main_folder_id)
