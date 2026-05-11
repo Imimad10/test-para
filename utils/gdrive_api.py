@@ -9,9 +9,8 @@ from utils.config import BASE_DIR, IMG_DIR, DB_PATH, USER_DB
 # Scopes pour Google Drive
 SCOPES = ['https://www.googleapis.com/auth/drive']
 
-# ID du dossier racine Google Drive (A configurer)
-# Vous pouvez mettre cet ID dans st.secrets["GDRIVE_FOLDER_ID"] ou ici
-GDRIVE_FOLDER_ID = st.secrets.get("GDRIVE_FOLDER_ID", "VOTRE_ID_DE_DOSSIER_GDRIVE_ICI")
+# ID du dossier racine Google Drive (PARAPHARM)
+GDRIVE_FOLDER_ID = st.secrets.get("GDRIVE_FOLDER_ID", "1XalJubOiIDdpUIwCy6NFZeu3UliUU4Fb")
 
 @st.cache_resource
 def get_gdrive_service():
@@ -132,7 +131,7 @@ def sync_to_gdrive(message=""):
             main_folder_id = find_or_create_folder(service, "Test_Para_Data")
             
         # Trouver ou créer le dossier Images
-        images_folder_id = find_or_create_folder(service, "images_stock", parent_id=main_folder_id)
+        images_folder_id = find_or_create_folder(service, "image_stock", parent_id=main_folder_id)
         
         # 1. Upload Database et Users
         if os.path.exists(DB_PATH):
@@ -175,7 +174,7 @@ def restore_from_gdrive():
         if user_db_id: download_file_from_gdrive(service, user_db_id, USER_DB)
         
         # Télécharger les images
-        images_folder_id = get_remote_file_id(service, "images_stock", main_folder_id)
+        images_folder_id = get_remote_file_id(service, "image_stock", main_folder_id)
         if images_folder_id:
             query = f"'{images_folder_id}' in parents and trashed=false"
             results = service.files().list(q=query, spaces='drive', fields='files(id, name)').execute()
