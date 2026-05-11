@@ -1379,28 +1379,69 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
                                         st.success("Image mise à jour en 800x800 et sauvegardée ! ✨")
                                         st.rerun()
             
-            else: # IMPORT GROUPÉ
-                st.info("💡 **Astuce** : Nommez vos images exactement comme vos produits (ex: `DOLIPRANE.jpg`). Le système les liera automatiquement !")
-                with st.form("form_bulk_img", clear_on_submit=True):
-                    bulk_files = st.file_uploader("Glissez toutes vos images ici", type=['png', 'jpg', 'jpeg'], accept_multiple_files=True)
-                    
-                    if st.form_submit_button(f"🚀 Lier les images sélectionnées"):
-                        if bulk_files:
-                            count = 0
-                            for f in bulk_files:
-                                prod_name_guess = f.name.split('.')[0].upper().replace('_', ' ')
-                                clean_guess = clean_filename(prod_name_guess)
-                                match = df_para[df_para['Produit'].apply(clean_filename) == clean_guess]
-                                if not match.empty:
-                                    fname = f"{clean_guess}.jpg"
-                                    saved_name = resize_and_save_image(f, os.path.join(IMG_DIR, fname))
-                                    if saved_name:
-                                        df_para.loc[df_para['Produit'].apply(clean_filename) == clean_guess, 'image_path'] = saved_name
-                                        count += 1
-                            save_data(df_para)
-                            st.success(f"✅ {count} images liées automatiquement !")
-                            add_log("Import Groupé Images", f"{count} images")
-                            st.rerun()
+            else: # LIAISON EXPRESS GDRIVE
+                st.subheader("🪄 Liaison Express GDrive")
+                st.markdown("Cette méthode permet de lier rapidement des dizaines de produits à vos photos sur Google Drive.")
+                
+                try:
+                    from utils.gdrive_api import get_gdrive_service, get_main_folder_id, get_remote_file_id, download_file_from_gdrive
+                    service = get_gdrive_service()
+                    main_id = get_main_folder_id()
+                    if service and main_id:
+                        img_folder_id = get_remote_file_id(service, "image_stock", main_id)
+                        if img_folder_id:
+                            # 1. Lister les fichiers sur Drive
+                            results = service.files().list(q=f"'{img_folder_id}' in parents and trashed=false", fields='files(id, name)').execute()
+                            drive_files = results.get('files', [])
+                            
+                            if not drive_files:
+                                st.warning("Aucune photo trouvée dans 'image_stock' sur Drive.")
+                            else:
+                                # 2. Produits sans images
+                                df_empty = df_para[df_para['image_path'].str.len() < 3].copy()
+                                if df_empty.empty:
+                                    st.success("🎉 Tous vos produits ont déjà une image !")
+                                else:
+                                    st.info(f"💡 {len(df_empty)} produits n'ont pas encore d'image. Tentative de correspondance automatique...")
+                                    
+                                    # Préparer les suggestions
+                                    suggestions = []
+                                    drive_dict = {f['name']: f['id'] for f in drive_files}
+                                    
+                                    for idx, row in df_empty.head(10).iterrows(): # On traite par packs de 10
+                                        p_name = row['Produit']
+                                        p_clean = clean_filename(p_name)
+                                        # Match fuzzy
+                                        best_match = None
+                                        for d_name in drive_dict.keys():
+                                            if p_clean in clean_filename(d_name):
+                                                best_match = d_name
+                                                break
+                                        suggestions.append({'id': idx, 'prod': p_name, 'match': best_match})
+                                    
+                                    # Affichage de l'interface de revue
+                                    for s in suggestions:
+                                        with st.container(border=True):
+                                            c1, c2, c3 = st.columns([2, 2, 1])
+                                            c1.write(f"**{s['prod']}**")
+                                            if s['match']:
+                                                c2.success(f"📎 Trouvé : {s['match']}")
+                                                if c3.button("Lier ✅", key=f"bulk_ok_{s['id']}"):
+                                                    file_id = drive_dict[s['match']]
+                                                    fname = f"{clean_filename(s['prod'])}.jpg"
+                                                    download_file_from_gdrive(service, file_id, os.path.join(IMG_DIR, fname))
+                                                    df_para.at[s['id'], 'image_path'] = fname
+                                                    save_data(df_para)
+                                                    st.rerun()
+                                            else:
+                                                c2.warning("Non trouvé")
+                                                if c3.button("🔍 Choisir", key=f"bulk_sel_{s['id']}"):
+                                                    add_photo_dialog(s['prod'])
+                                    
+                                    if len(df_empty) > 10:
+                                        st.write(f"... et {len(df_empty)-10} autres produits.")
+                except Exception as e:
+                    st.error(f"Erreur GDrive : {e}")
             
             st.divider()
             if st.button("🧹 Optimiseur : Supprimer les images inutilisées"):
