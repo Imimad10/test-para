@@ -11,8 +11,9 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 import io
-import json
 import google.generativeai as genai
+import requests
+import json
 from PIL import Image as PILImage, ImageOps
 from streamlit_extras.colored_header import colored_header
 from streamlit_extras.mention import mention
@@ -952,33 +953,64 @@ def show_details(row):
                         if api_key:
                             try:
                                 api_key = api_key.strip()
-                                genai.configure(api_key=api_key)
+                                r = ""
                                 
-                                prompt = f"""
-                                Tu es un expert en parapharmacie pour le magasin 'Pharmaciel'. 
-                                Aide le client pour le produit suivant :
-                                Nom: {row['Produit']}
-                                Laboratoire: {row['Laboratoire']}
-                                Famille: {row['Famille']}
-                                Description actuelle: {row['Description']}
-                                
-                                Question du client: {user_q}
-                                
-                                Réponds de manière professionnelle, rassurante et précise. Si tu ne connais pas le produit, donne des conseils généraux basés sur sa famille ({row['Famille']}).
-                                """
-                                
-                                # Utilisation du modèle choisi par l'admin ou défaut sur Flash
-                                target_model = settings.get('ai_model', 'gemini-1.5-flash')
-                                
-                                model = genai.GenerativeModel(target_model)
-                                response = model.generate_content(prompt)
-                                r = response.text
+                                # Détection auto : OpenRouter vs Gemini direct
+                                if api_key.startswith("sk-or-v1-"):
+                                    # Logic OpenRouter
+                                    headers = {
+                                        "Authorization": f"Bearer {api_key}",
+                                        "Content-Type": "application/json",
+                                        "HTTP-Referer": "https://pharmaciel.dz", # Optionnel
+                                        "X-Title": "Pharmaciel Pro" # Optionnel
+                                    }
+                                    
+                                    # Map models if needed
+                                    model_map = {
+                                        "gemini-1.5-flash": "google/gemini-flash-1.5",
+                                        "gemini-1.5-pro": "google/gemini-pro-1.5",
+                                        "gemini-1.0-pro": "google/gemini-pro"
+                                    }
+                                    or_model = model_map.get(settings.get('ai_model', 'gemini-1.5-flash'), "google/gemini-flash-1.5")
+                                    
+                                    payload = {
+                                        "model": or_model,
+                                        "messages": [
+                                            {"role": "system", "content": "Tu es un expert en parapharmacie pour le magasin 'Pharmaciel'."},
+                                            {"role": "user", "content": f"Produit: {row['Produit']}\nLabo: {row['Laboratoire']}\nFamille: {row['Famille']}\nDescription: {row['Description']}\n\nQuestion: {user_q}"}
+                                        ]
+                                    }
+                                    
+                                    response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
+                                    if response.status_code == 200:
+                                        r = response.json()['choices'][0]['message']['content']
+                                    else:
+                                        r = f"⚠️ Erreur OpenRouter ({response.status_code}): {response.text}"
+                                else:
+                                    # Logic Gemini Direct
+                                    genai.configure(api_key=api_key)
+                                    prompt = f"""
+                                    Tu es un expert en parapharmacie pour le magasin 'Pharmaciel'. 
+                                    Aide le client pour le produit suivant :
+                                    Nom: {row['Produit']}
+                                    Laboratoire: {row['Laboratoire']}
+                                    Famille: {row['Famille']}
+                                    Description actuelle: {row['Description']}
+                                    
+                                    Question du client: {user_q}
+                                    
+                                    Réponds de manière professionnelle, rassurante et précise. Si tu ne connais pas le produit, donne des conseils généraux basés sur sa famille ({row['Famille']}).
+                                    """
+                                    target_model = settings.get('ai_model', 'gemini-1.5-flash')
+                                    model = genai.GenerativeModel(target_model)
+                                    response = model.generate_content(prompt)
+                                    r = response.text
                             except Exception as e:
                                 e_str = str(e)
                                 if "429" in e_str:
-                                    r = "⚠️ **Limite de quota atteinte** : Le service AI est très sollicité ou vous utilisez une clé gratuite limitée. Veuillez patienter 60 secondes ou vérifiez vos quotas sur Google AI Studio."
+                                    r = "⚠️ **Limite de quota atteinte** : Le service AI est très sollicité ou vous utilisez une clé gratuite limitée. Veuillez patienter 60 secondes ou vérifiez vos quotas."
                                 elif "403" in e_str or "API_KEY_INVALID" in e_str:
-                                    r = "⚠️ **Clé API Invalide** : La clé configurée dans l'onglet Admin n'est pas reconnue par Google. Assurez-vous qu'elle est correcte."
+                                    r = "⚠️ **Clé API Invalide** : La clé configurée dans l'onglet Admin n'est pas reconnue."
                                 else:
                                     r = f"Erreur IA : {e_str} (Vérifiez votre clé API dans l'onglet Admin)."
                         else:
@@ -1542,7 +1574,11 @@ elif menu == "⚙️ Admin":
             
             c_ai1, c_ai2 = st.columns([2, 1])
             with c_ai1:
-                new_gemini = st.text_input("Clé API Gemini", value=settings.get('gemini_key', ''), type="password")
+                # Récupération de la clé (Secrets ou Settings)
+                current_key = settings.get('gemini_key', '')
+                if not current_key and "AI_KEY" in st.secrets:
+                    current_key = st.secrets["AI_KEY"]
+                new_gemini = st.text_input("Clé API (Gemini ou OpenRouter)", value=current_key, type="password")
             with c_ai2:
                 ai_active = st.toggle("Activer l'IA", value=settings.get('ai_active', True))
             
