@@ -955,21 +955,26 @@ def show_details(row):
                                 api_key = api_key.strip()
                                 r = ""
                                 
-                                # Détection auto : OpenRouter vs Gemini direct
-                                if api_key.startswith("sk-or-v1-"):
+                                # Choix du fournisseur
+                                ai_provider = settings.get('ai_provider', 'Google Gemini')
+                                
+                                if ai_provider == "OpenRouter" and settings.get('openrouter_key'):
                                     # Logic OpenRouter
+                                    or_key = settings.get('openrouter_key').strip()
                                     headers = {
-                                        "Authorization": f"Bearer {api_key}",
+                                        "Authorization": f"Bearer {or_key}",
                                         "Content-Type": "application/json",
-                                        "HTTP-Referer": "https://pharmaciel.dz", # Optionnel
-                                        "X-Title": "Pharmaciel Pro" # Optionnel
+                                        "HTTP-Referer": "https://pharmaciel.dz",
+                                        "X-Title": "Pharmaciel Pro"
                                     }
                                     
-                                    # Map models if needed
+                                    # Map models for OpenRouter
                                     model_map = {
                                         "gemini-1.5-flash": "google/gemini-flash-1.5",
                                         "gemini-1.5-pro": "google/gemini-pro-1.5",
-                                        "gemini-1.0-pro": "google/gemini-pro"
+                                        "gemini-1.0-pro": "google/gemini-pro",
+                                        "gpt-4o-mini": "openai/gpt-4o-mini",
+                                        "claude-3-haiku": "anthropic/claude-3-haiku"
                                     }
                                     or_model = model_map.get(settings.get('ai_model', 'gemini-1.5-flash'), "google/gemini-flash-1.5")
                                     
@@ -986,9 +991,10 @@ def show_details(row):
                                         r = response.json()['choices'][0]['message']['content']
                                     else:
                                         r = f"⚠️ Erreur OpenRouter ({response.status_code}): {response.text}"
-                                else:
+                                elif ai_provider == "Google Gemini" and settings.get('gemini_key'):
                                     # Logic Gemini Direct
-                                    genai.configure(api_key=api_key)
+                                    gem_key = settings.get('gemini_key').strip()
+                                    genai.configure(api_key=gem_key)
                                     prompt = f"""
                                     Tu es un expert en parapharmacie pour le magasin 'Pharmaciel'. 
                                     Aide le client pour le produit suivant :
@@ -1005,6 +1011,8 @@ def show_details(row):
                                     model = genai.GenerativeModel(target_model)
                                     response = model.generate_content(prompt)
                                     r = response.text
+                                else:
+                                    r = "⚠️ Clé API non configurée pour le fournisseur sélectionné."
                             except Exception as e:
                                 e_str = str(e)
                                 if "429" in e_str:
@@ -1569,39 +1577,40 @@ elif menu == "⚙️ Admin":
             new_msg = st.text_area("Message défilant (Marquee)", value=settings.get('marquee', ''))
             
             st.divider()
-            st.markdown("### 🤖 Intelligence Artificielle (Google Gemini)")
-            st.info("Pour des réponses intelligentes, obtenez une clé gratuite sur [Google AI Studio](https://aistudio.google.com/app/apikey)")
+            st.markdown("### 🤖 Configuration de l'Intelligence Artificielle")
             
-            c_ai1, c_ai2 = st.columns([2, 1])
-            with c_ai1:
-                # Récupération de la clé (Secrets ou Settings)
-                current_key = settings.get('gemini_key', '')
-                if not current_key and "AI_KEY" in st.secrets:
-                    current_key = st.secrets["AI_KEY"]
-                new_gemini = st.text_input("Clé API (Gemini ou OpenRouter)", value=current_key, type="password")
-            with c_ai2:
-                ai_active = st.toggle("Activer l'IA", value=settings.get('ai_active', True))
+            ai_provider = st.radio("Fournisseur AI Actif", ["Google Gemini", "OpenRouter"], 
+                                   index=0 if settings.get('ai_provider', 'Google Gemini') == "Google Gemini" else 1,
+                                   horizontal=True)
+            
+            col_keys1, col_keys2 = st.columns(2)
+            with col_keys1:
+                new_gemini = st.text_input("Clé Google Gemini (AI Studio)", value=settings.get('gemini_key', ''), type="password")
+            with col_keys2:
+                new_openrouter = st.text_input("Clé OpenRouter (sk-or-...)", value=settings.get('openrouter_key', ''), type="password")
+            
+            ai_active = st.toggle("Activer l'assistant IA pour les clients", value=settings.get('ai_active', True))
             
             st.write("---")
             st.markdown("#### ⚙️ Choix du Modèle")
             ai_models = {
-                "gemini-1.5-flash": "⚡ Flash (Recommandé - Gratuit & Rapide)",
-                "gemini-1.5-pro": "🧠 Pro (Avancé - Plus intelligent, Quotas limités)",
-                "gemini-1.0-pro": "📦 Legacy (Ancien modèle)"
+                "gemini-1.5-flash": "⚡ Gemini Flash (Rapide & Gratuit)",
+                "gemini-1.5-pro": "🧠 Gemini Pro (Plus intelligent)",
+                "gpt-4o-mini": "🚀 GPT-4o Mini (OpenRouter uniquement)",
+                "claude-3-haiku": "🎨 Claude Haiku (OpenRouter uniquement)"
             }
             curr_model = settings.get('ai_model', 'gemini-1.5-flash')
-            # Fallback si le modèle actuel n'est plus dans la liste
             if curr_model not in ai_models: curr_model = "gemini-1.5-flash"
             
             new_model = st.selectbox("Modèle à utiliser", options=list(ai_models.keys()), 
                                     format_func=lambda x: ai_models[x], 
                                     index=list(ai_models.keys()).index(curr_model))
             
-            st.caption("💡 **Conseil** : Le modèle **Flash** est parfait pour le conseil client et reste gratuit avec des limites généreuses. Le modèle **Pro** est à utiliser si vous avez besoin d'analyses très complexes.")
-
-            if st.button("💾 Enregistrer les Paramètres IA", use_container_width=True):
+            if st.button("💾 Enregistrer la Configuration AI", use_container_width=True):
                 settings['marquee'] = new_msg
                 settings['gemini_key'] = new_gemini
+                settings['openrouter_key'] = new_openrouter
+                settings['ai_provider'] = ai_provider
                 settings['ai_active'] = ai_active
                 settings['ai_model'] = new_model
                 save_settings(settings)
