@@ -180,16 +180,16 @@ def apply_custom_theme(theme_choice):
             "input_bg": "#1e293b",
             "input_text": "#f8fafc"
         },
-        "Pharmaciel Premium 💊": {
-            "bg": "linear-gradient(135deg, #0e1117 0%, #1c1f26 100%)",
-            "card_bg": "rgba(30, 33, 48, 0.7)",
-            "text": "#fafafa",
-            "sidebar_bg": "#11141c",
-            "primary": "#ff4b4b",
-            "accent": "#cc3b3b",
-            "sidebar_text": "#fafafa",
-            "input_bg": "#1e2130",
-            "input_text": "#fafafa"
+        "Pharmaciel Premium 🧪": {
+            "bg": "linear-gradient(135deg, #e0f2f1 0%, #ffffff 100%)",
+            "card_bg": "rgba(255, 255, 255, 0.9)",
+            "text": "#004d40",
+            "sidebar_bg": "#00695c",
+            "primary": "#26a69a",
+            "accent": "#00796b",
+            "sidebar_text": "#e0f2f1",
+            "input_bg": "#ffffff",
+            "input_text": "#004d40"
         }
     }
     
@@ -209,7 +209,25 @@ def apply_custom_theme(theme_choice):
             background: {t['bg']} !important;
             background-attachment: fixed !important;
             color: {t['text']} !important;
+            transition: all 0.5s ease;
         }}
+        
+        {"""
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .stApp {
+            background: linear-gradient(-45deg, #e0f2f1, #ffffff, #b2dfdb, #e0f2f1) !important;
+            background-size: 400% 400% !important;
+            animation: gradientBG 15s ease infinite !important;
+        }
+        h1, h2, h3 {
+            color: #00695c !important;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        """ if theme_choice == "Pharmaciel Premium 🧪" else ""}
         
         {"""
         h1, h2, h3, .stHeader {
@@ -877,7 +895,7 @@ with st.sidebar:
 
     # Thème & Déconnexion
     with st.expander("🎨 Personnalisation", expanded=False):
-        theme_list = ["Clair Modern ❄️", "Sombre Élite 🌙", "Émeraude Royal 👑", "Aurore Boréale 🌌", "Cyberpunk ⚡", "Antigravity Dark 🌌", "Pharmaciel Premium 💊"]
+        theme_list = ["Pharmaciel Premium 🧪", "Clair Modern ❄️", "Sombre Élite 🌙", "Émeraude Royal 👑", "Aurore Boréale 🌌", "Cyberpunk ⚡", "Antigravity Dark 🌌"]
         new_theme = st.selectbox("Changer l'ambiance", 
                                 theme_list, 
                                 index=theme_list.index(st.session_state.theme))
