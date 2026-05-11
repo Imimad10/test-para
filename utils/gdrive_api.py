@@ -123,7 +123,21 @@ def upload_file_to_gdrive(service, file_path, parent_id, file_name=None):
     else:
         # Create new
         file_metadata = {'name': file_name, 'parents': [parent_id]}
-        service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+        new_file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+        
+        # Tentative de transfert de propriété (optionnel, peut échouer sur compte perso)
+        try:
+            file_id = new_file.get('id')
+            user_email = st.secrets.get("client_email_owner", "darpharm36@gmail.com")
+            permission = {
+                'role': 'owner',
+                'type': 'user',
+                'emailAddress': user_email
+            }
+            # Note: transferOwnership=True est requis
+            service.permissions().create(fileId=file_id, body=permission, transferOwnership=True, fields='id').execute()
+        except:
+            pass # Si le transfert échoue, le fichier reste la propriété du bot (si quota le permet)
 
 def download_file_from_gdrive(service, file_id, dest_path):
     """Télécharge un fichier depuis Google Drive."""
