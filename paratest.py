@@ -1164,7 +1164,12 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
                         row = page_items.iloc[i+j]
                         with cols[j]:
                             with st.container(border=True):
-                                img = get_image_base64(row['image_path'])
+                                # Smart Match : si image_path vide, on tente le nom du produit
+                                img_path = row['image_path']
+                                if not img_path or str(img_path).lower() in ['nan', '']:
+                                    img_path = f"{clean_filename(row['Produit'])}.jpg"
+                                    
+                                img = get_image_base64(img_path)
                                 if img: 
                                     st.image(img, use_container_width=True)
                                 else:
