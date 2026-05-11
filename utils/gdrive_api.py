@@ -147,7 +147,7 @@ def sync_to_gdrive(message=""):
             service.files().get(fileId=main_folder_id, fields='id').execute()
         except Exception as e:
             if "404" in str(e):
-                return False, f"❌ Dossier racine introuvable ou accès refusé. Vérifiez que vous avez partagé le dossier GDrive avec l'email : `{service.auth.signer_email if hasattr(service.auth, 'signer_email') else 'votre bot Google'}`"
+                return False, "❌ Dossier racine introuvable ou accès refusé. Vérifiez que vous avez partagé le dossier GDrive avec l'email de votre bot Google (en tant qu'Éditeur)."
             return False, f"❌ Erreur accès GDrive : {e}"
             
         if main_folder_id == "VOTRE_ID_DE_DOSSIER_GDRIVE_ICI":
@@ -184,7 +184,7 @@ def restore_from_gdrive():
             service.files().get(fileId=main_folder_id, fields='id').execute()
         except Exception as e:
             if "404" in str(e):
-                return False, f"❌ Dossier racine introuvable ou accès refusé. Vérifiez que vous avez partagé le dossier GDrive avec l'email : `{service.auth.signer_email if hasattr(service.auth, 'signer_email') else 'votre bot Google'}`"
+                return False, "❌ Dossier racine introuvable ou accès refusé. Vérifiez que vous avez partagé le dossier GDrive avec l'email de votre bot Google (en tant qu'Éditeur)."
             return False, f"❌ Erreur accès GDrive : {e}"
             
         if main_folder_id == "VOTRE_ID_DE_DOSSIER_GDRIVE_ICI":
