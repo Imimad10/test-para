@@ -589,12 +589,24 @@ def resize_and_save_image(uploaded_file, target_path, size=(800, 800)):
     try:
         from PIL import Image as PILImage, ImageOps
         img = PILImage.open(uploaded_file)
-        if img.mode in ("RGBA", "P"):
-            img = img.convert("RGB")
-        img = ImageOps.fit(img, size, PILImage.Resampling.LANCZOS)
+        
+        # 1. Conversion en RGBA pour gérer la transparence proprement
+        img = img.convert("RGBA")
+        
+        # 2. Redimensionnement proportionnel (pour tenir dans le cadre)
+        img.thumbnail(size, PILImage.Resampling.LANCZOS)
+        
+        # 3. Création du fond blanc 800x800
+        new_img = PILImage.new("RGB", size, (255, 255, 255))
+        
+        # 4. Centrage
+        offset = ((size[0] - img.size[0]) // 2, (size[1] - img.size[1]) // 2)
+        new_img.paste(img, offset, img) # Utilise le canal alpha pour le collage
+        
+        # 5. Sauvegarde en JPEG
         if not target_path.lower().endswith('.jpg'):
             target_path = os.path.splitext(target_path)[0] + ".jpg"
-        img.save(target_path, "JPEG", quality=85)
+        new_img.save(target_path, "JPEG", quality=90)
         return os.path.basename(target_path)
     except Exception as e:
         st.error(f"Erreur de traitement image : {e}")
@@ -1215,8 +1227,53 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
                                         st.success(f"Image 800x800 liée à {sel_prod}")
                                         st.rerun()
                     with c2:
-                        st.info("Recherche rapide")
-                        st.link_button("🌐 Chercher sur Google Images", f"https://www.google.com/search?tbm=isch&q={sel_prod.replace(' ','+')}")
+                        st.markdown("### 🤖 Assistant Recherche IA")
+                        
+                        if st.button("🔍 Demander à l'IA d'analyser le produit", use_container_width=True):
+                            with st.spinner("Analyse du produit par l'IA..."):
+                                # Utiliser l'IA configurée
+                                or_key = settings.get('openrouter_key', '').strip()
+                                gem_key = settings.get('gemini_key', '').strip()
+                                ai_provider = settings.get('ai_provider', 'Google Gemini')
+                                
+                                prompt = f"Produit: {sel_prod}\nDonne moi les 3 meilleurs mots clés de recherche pour trouver l'image de ce produit parapharmaceutique sur Google. Réponds court."
+                                advice = "Cherche sur Google Images."
+                                
+                                try:
+                                    if ai_provider == "OpenRouter" and or_key:
+                                        headers = {"Authorization": f"Bearer {or_key}", "Content-Type": "application/json"}
+                                        payload = {"model": "google/gemini-flash-1.5", "messages": [{"role": "user", "content": prompt}]}
+                                        res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
+                                        advice = res.json()['choices'][0]['message']['content']
+                                    elif ai_provider == "Google Gemini" and gem_key:
+                                        genai.configure(api_key=gem_key)
+                                        model = genai.GenerativeModel("gemini-1.5-flash")
+                                        advice = model.generate_content(prompt).text
+                                except: pass
+                                
+                                st.success(f"💡 Conseil IA : {advice}")
+                                st.link_button("🚀 Lancer la recherche optimisée", f"https://www.google.com/search?tbm=isch&q={urllib.parse.quote(advice)}")
+
+                        st.divider()
+                        st.markdown("### 🔗 Importer via URL")
+                        img_url = st.text_input("Coller l'URL de l'image ici", placeholder="https://example.com/image.jpg")
+                        if st.button("📥 Télécharger et Traiter (800x800 White)"):
+                            if img_url:
+                                try:
+                                    response = requests.get(img_url, stream=True, timeout=10)
+                                    if response.status_code == 200:
+                                        fname = f"{clean_filename(sel_prod)}.jpg"
+                                        target_path = os.path.join(IMG_DIR, fname)
+                                        # Utiliser resize_and_save_image sur le flux
+                                        img_data = io.BytesIO(response.content)
+                                        saved_name = resize_and_save_image(img_data, target_path)
+                                        if saved_name:
+                                            df_para.loc[df_para['Produit'] == sel_prod, 'image_path'] = saved_name
+                                            save_data(df_para)
+                                            st.success(f"Image importée et formatée pour {sel_prod}")
+                                            st.rerun()
+                                    else: st.error("Impossible de télécharger l'image depuis cette URL.")
+                                except Exception as e: st.error(f"Erreur : {e}")
 
             elif mode_img == "🖼️ Modifier / Supprimer":
                 df_avec_image = df_para[df_para['image_path'].str.len() > 3]
@@ -1243,6 +1300,12 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
                     
                     with col_m2:
                         st.write("📤 Remplacer / Ajouter")
+                        
+                        # Assistant IA ici aussi
+                        if st.button("🤖 Aide IA Recherche", key="ai_help_replace", use_container_width=True):
+                             st.info(f"💡 Suggestion : `{sel_prod} parapharmacie algerie`")
+                             st.link_button("🔍 Chercher", f"https://www.google.com/search?tbm=isch&q={sel_prod.replace(' ','+')}+parapharmacie+algerie")
+                        
                         with st.form("form_replace_img", clear_on_submit=True):
                             new_up = st.file_uploader("Nouvelle image (Auto-resize 800x800)", type=['png', 'jpg', 'jpeg'], key="replace_up")
                             if st.form_submit_button("💾 Enregistrer la nouvelle image"):
