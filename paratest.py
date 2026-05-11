@@ -42,45 +42,23 @@ def save_settings(settings):
     with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
         json.dump(settings, f, ensure_ascii=False, indent=4)
 
-def sync_to_github(message="Mise à jour via interface"):
-    """Tente de persister les fichiers sur GitHub pour éviter la perte sur Streamlit Cloud."""
+def sync_data_permanent(msg="Mise à jour automatique"):
+    """Envoie les données et images vers Google Drive pour la persistance."""
     try:
-        import subprocess
-        # Config minimale pour commit
-        subprocess.run(["git", "config", "user.email", "imad@pharmaciel.dz"], capture_output=True)
-        subprocess.run(["git", "config", "user.name", "Pharmaciel Admin"], capture_output=True)
-        
-        # Ajout des fichiers critiques
-        subprocess.run(["git", "add", "images_stock/", "database_para.csv", "users.csv", "db_pharmaciel.json"], capture_output=True)
-        subprocess.run(["git", "commit", "-m", message], capture_output=True)
-        
-        # Tentative de push (Nécessite que l'environnement ait les droits, 
-        # souvent le cas si déployé via GitHub avec accès write)
-        res = subprocess.run(["git", "push", "origin", "main"], capture_output=True, text=True)
-        
-        if res.returncode == 0:
-            return True, "✅ Données sauvegardées définitivement sur GitHub !"
-        else:
-            if "Authentication failed" in res.stderr or "Permission denied" in res.stderr:
-                return False, "❌ Erreur : GitHub refuse l'écriture. Configurez un Token d'accès (Secrets)."
-            return False, f"⚠️ Erreur Git : {res.stderr}"
+        from utils.gdrive_api import sync_to_gdrive
+        success, res = sync_to_gdrive(msg)
+        return success, res
     except Exception as e:
-        return False, f"❌ Erreur système : {str(e)}"
+        return False, str(e)
 
-def restore_from_github():
-    """Récupère la version la plus récente depuis GitHub (écrase les modifs locales non sauvegardées)."""
+def restore_data_permanent():
+    """Récupère les données depuis Google Drive."""
     try:
-        import subprocess
-        # On force un reset pour être sûr d'avoir la version GitHub
-        subprocess.run(["git", "fetch", "origin"], capture_output=True)
-        res = subprocess.run(["git", "reset", "--hard", "origin/main"], capture_output=True, text=True)
-        
-        if res.returncode == 0:
-            return True, "✅ Restauration réussie ! Toutes les photos et données GitHub ont été récupérées."
-        else:
-            return False, f"⚠️ Erreur Restore : {res.stderr}"
+        from utils.gdrive_api import restore_from_gdrive
+        success, res = restore_from_gdrive()
+        return success, res
     except Exception as e:
-        return False, f"❌ Erreur système : {str(e)}"
+        return False, str(e)
 
 def add_log(action, details=""):
     user = st.session_state.get('current_user', 'Système')
@@ -1242,7 +1220,9 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
                                     if saved_name:
                                         df_para.loc[df_para['Produit'] == sel_prod, 'image_path'] = saved_name
                                         save_data(df_para)
-                                        st.success(f"Image 800x800 liée à {sel_prod}")
+                                        # Auto-sync GDrive
+                                        sync_data_permanent(f"Ajout image: {sel_prod}")
+                                        st.success(f"Image 800x800 liée à {sel_prod} (Sauvegardée sur GDrive ✨)")
                                         st.rerun()
                     with c2:
                         st.markdown("### 🤖 Assistant Recherche IA")
@@ -1288,7 +1268,9 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
                                         if saved_name:
                                             df_para.loc[df_para['Produit'] == sel_prod, 'image_path'] = saved_name
                                             save_data(df_para)
-                                            st.success(f"Image importée et formatée pour {sel_prod}")
+                                            # Auto-sync GDrive
+                                            sync_data_permanent(f"Import URL image: {sel_prod}")
+                                            st.success(f"Image importée et formatée pour {sel_prod} (Sauvegardée ✨)")
                                             st.rerun()
                                     else: st.error("Impossible de télécharger l'image depuis cette URL.")
                                 except Exception as e: st.error(f"Erreur : {e}")
@@ -1333,7 +1315,9 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
                                     if saved_name:
                                         df_para.loc[df_para['Produit'] == sel_prod, 'image_path'] = saved_name
                                         save_data(df_para)
-                                        st.success("Image mise à jour en 800x800 !")
+                                        # Auto-sync GDrive
+                                        sync_data_permanent(f"Modif image: {sel_prod}")
+                                        st.success("Image mise à jour en 800x800 et sauvegardée ! ✨")
                                         st.rerun()
             
             else: # IMPORT GROUPÉ
