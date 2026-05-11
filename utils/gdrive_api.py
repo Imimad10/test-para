@@ -24,6 +24,9 @@ def get_gdrive_service():
     creds = None
     if creds_dict:
         try:
+            # Correction des sauts de ligne si nécessaire
+            if "private_key" in creds_dict:
+                creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
             creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
         except Exception as e:
             st.error(f"Erreur d'authentification Google Drive (secrets) : {e}")
