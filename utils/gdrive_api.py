@@ -239,6 +239,6 @@ def restore_from_gdrive():
                 
         # Effacer le cache Streamlit car les fichiers ont changé
         st.cache_data.clear()
-        return True, "✅ Restauration depuis Google Drive réussie !"
+        return True, f"✅ Restauration réussie : {len(img_items)} photos récupérées depuis GDrive !"
     except Exception as e:
         return False, f"❌ Erreur lors de la restauration depuis GDrive : {e}"
