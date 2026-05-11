@@ -905,23 +905,60 @@ with st.sidebar:
         st.rerun()
 
 # --- DIALOGUE DÉTAILS ---
-@st.dialog("📸 Ajouter une Photo Rapide")
+@st.dialog("📸 Ajouter une Photo")
 def add_photo_dialog(product_name):
     st.write(f"Ajouter une image pour : **{product_name}**")
-    up = st.file_uploader("Choisir une image (800x800 auto)", type=['png','jpg','jpeg'])
-    if st.button("💾 Enregistrer l'image", use_container_width=True):
-        if up:
-            fname = f"{clean_filename(product_name)}.jpg"
-            saved_name = resize_and_save_image(up, os.path.join(IMG_DIR, fname))
-            if saved_name:
-                # On recharge la DB pour être sûr
-                df_temp = load_data()
-                df_temp.loc[df_temp['Produit'] == product_name, 'image_path'] = saved_name
-                save_data(df_temp)
-                st.success("Image liée avec succès !")
-                st.rerun()
-        else:
-            st.error("Veuillez sélectionner un fichier.")
+    
+    tab1, tab2 = st.tabs(["📤 Upload", "☁️ Depuis GDrive"])
+    
+    with tab1:
+        up = st.file_uploader("Choisir une image (800x800 auto)", type=['png','jpg','jpeg'], key=f"up_{product_name}")
+        if st.button("💾 Enregistrer l'image (Upload)", use_container_width=True):
+            if up:
+                fname = f"{clean_filename(product_name)}.jpg"
+                saved_name = resize_and_save_image(up, os.path.join(IMG_DIR, fname))
+                if saved_name:
+                    df_temp = load_data()
+                    df_temp.loc[df_temp['Produit'] == product_name, 'image_path'] = saved_name
+                    save_data(df_temp)
+                    st.success("Image liée avec succès !")
+                    st.rerun()
+            else: st.error("Veuillez sélectionner un fichier.")
+            
+    with tab2:
+        st.write("🔍 Rechercher sur votre Google Drive")
+        try:
+            from utils.gdrive_api import get_gdrive_service, get_main_folder_id, get_remote_file_id, download_file_from_gdrive
+            service = get_gdrive_service()
+            main_id = get_main_folder_id()
+            if service and main_id:
+                img_folder_id = get_remote_file_id(service, "image_stock", main_id)
+                if img_folder_id:
+                    # On liste les fichiers du dossier image_stock
+                    query = f"'{img_folder_id}' in parents and trashed=false"
+                    results = service.files().list(q=query, fields='files(id, name)').execute()
+                    files = results.get('files', [])
+                    if files:
+                        file_options = {f['name']: f['id'] for f in files}
+                        # Recherche intelligente : pré-sélectionner si match partiel
+                        match_options = [n for n in file_options.keys() if clean_filename(product_name) in clean_filename(n)]
+                        sel_file_name = st.selectbox("Sélectionner un fichier sur Drive", options=list(file_options.keys()), index=0 if not match_options else list(file_options.keys()).index(match_options[0]))
+                        
+                        if st.button("📥 Récupérer cette image depuis Drive", use_container_width=True):
+                            with st.spinner("Récupération..."):
+                                file_id = file_options[sel_file_name]
+                                fname = f"{clean_filename(product_name)}.jpg"
+                                target_path = os.path.join(IMG_DIR, fname)
+                                download_file_from_gdrive(service, file_id, target_path)
+                                
+                                df_temp = load_data()
+                                df_temp.loc[df_temp['Produit'] == product_name, 'image_path'] = fname
+                                save_data(df_temp)
+                                st.success(f"Image récupérée depuis Drive pour {product_name} !")
+                                st.rerun()
+                    else: st.warning("Aucun fichier trouvé dans 'image_stock' sur Drive.")
+        except Exception as e:
+            st.error(f"Erreur GDrive : {e}")
 
 @st.dialog("Fiche Produit", width="large")
 def show_details(row):
