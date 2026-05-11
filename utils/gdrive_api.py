@@ -28,10 +28,16 @@ def get_gdrive_service():
             creds_info = dict(creds_dict)
             # Nettoyage ultra-robuste de la clé privée
             if "private_key" in creds_info:
+                import codecs
                 pk = str(creds_info["private_key"])
-                # On gère tous les cas de figure d'échappement Streamlit/TOML/JSON
-                pk = pk.replace("\\\\n", "\n").replace("\\n", "\n")
-                # On s'assure qu'il n'y a pas d'espaces autour des sauts de ligne
+                # On utilise le décodeur unicode_escape pour traiter les \n et autres
+                try:
+                    # On s'assure d'abord que c'est bien une chaîne brute
+                    pk = pk.encode('utf-8').decode('unicode_escape')
+                except:
+                    # Repli sur le remplacement manuel si l'escape échoue
+                    pk = pk.replace("\\\\n", "\n").replace("\\n", "\n")
+                
                 pk = pk.strip()
                 creds_info["private_key"] = pk
             creds = Credentials.from_service_account_info(creds_info, scopes=SCOPES)
