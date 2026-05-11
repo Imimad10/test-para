@@ -125,8 +125,15 @@ def sync_to_gdrive(message=""):
     if not service: return False, "Service GDrive non initialisé."
     
     try:
-        # Trouver ou créer le dossier racine
+        # Vérifier l'accès au dossier racine
         main_folder_id = GDRIVE_FOLDER_ID
+        try:
+            service.files().get(fileId=main_folder_id, fields='id').execute()
+        except Exception as e:
+            if "404" in str(e):
+                return False, f"❌ Dossier racine introuvable ou accès refusé. Vérifiez que vous avez partagé le dossier GDrive avec l'email : `{service.auth.signer_email if hasattr(service.auth, 'signer_email') else 'votre bot Google'}`"
+            return False, f"❌ Erreur accès GDrive : {e}"
+            
         if main_folder_id == "VOTRE_ID_DE_DOSSIER_GDRIVE_ICI":
             main_folder_id = find_or_create_folder(service, "Test_Para_Data")
             
@@ -157,6 +164,13 @@ def restore_from_gdrive():
     
     try:
         main_folder_id = GDRIVE_FOLDER_ID
+        try:
+            service.files().get(fileId=main_folder_id, fields='id').execute()
+        except Exception as e:
+            if "404" in str(e):
+                return False, f"❌ Dossier racine introuvable ou accès refusé. Vérifiez que vous avez partagé le dossier GDrive avec l'email : `{service.auth.signer_email if hasattr(service.auth, 'signer_email') else 'votre bot Google'}`"
+            return False, f"❌ Erreur accès GDrive : {e}"
+            
         if main_folder_id == "VOTRE_ID_DE_DOSSIER_GDRIVE_ICI":
             # On cherche le dossier par nom
             query = f"mimeType='application/vnd.google-apps.folder' and name='Test_Para_Data' and trashed=false"
