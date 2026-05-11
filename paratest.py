@@ -611,6 +611,23 @@ def resize_and_save_image(uploaded_file, target_path, size=(800, 800)):
 def get_image_base64(filename):
     if not filename or str(filename).lower() in ['nan', '']: return None
     path = os.path.join(IMG_DIR, str(filename).strip())
+    
+    # 1. Vérification locale
+    if not os.path.isfile(path):
+        # 2. Fallback GDrive : Si l'image manque, on tente de la télécharger
+        try:
+            from utils.gdrive_api import get_gdrive_service, get_remote_file_id, download_file_from_gdrive, GDRIVE_FOLDER_ID
+            service = get_gdrive_service()
+            if service:
+                # Trouver le dossier image_stock sur Drive
+                img_folder_id = get_remote_file_id(service, "image_stock", GDRIVE_FOLDER_ID)
+                if img_folder_id:
+                    file_id = get_remote_file_id(service, str(filename).strip(), img_folder_id)
+                    if file_id:
+                        download_file_from_gdrive(service, file_id, path)
+        except:
+            pass # On ignore les erreurs de téléchargement silencieusement
+            
     if os.path.isfile(path):
         try:
             with open(path, "rb") as f:
