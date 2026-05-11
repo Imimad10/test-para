@@ -26,9 +26,14 @@ def get_gdrive_service():
         try:
             # Créer une copie pour éviter l'erreur "Secrets does not support item assignment"
             creds_info = dict(creds_dict)
-            # Correction des sauts de ligne si nécessaire
+            # Nettoyage ultra-robuste de la clé privée
             if "private_key" in creds_info:
-                creds_info["private_key"] = creds_info["private_key"].replace("\\n", "\n")
+                pk = str(creds_info["private_key"])
+                # On gère tous les cas de figure d'échappement Streamlit/TOML/JSON
+                pk = pk.replace("\\\\n", "\n").replace("\\n", "\n")
+                # On s'assure qu'il n'y a pas d'espaces autour des sauts de ligne
+                pk = pk.strip()
+                creds_info["private_key"] = pk
             creds = Credentials.from_service_account_info(creds_info, scopes=SCOPES)
         except Exception as e:
             st.error(f"Erreur d'authentification Google Drive (secrets) : {e}")
