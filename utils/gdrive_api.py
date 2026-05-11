@@ -141,19 +141,26 @@ def sync_to_gdrive(message=""):
     if not service: return False, "Service GDrive non initialisé."
     
     try:
-        # Vérifier l'accès au dossier racine
+        # Vérifier l'accès au dossier
         main_folder_id = GDRIVE_FOLDER_ID
+        
+        # Tentative d'accès direct
         try:
-            service.files().get(fileId=main_folder_id, fields='id').execute()
+            service.files().get(fileId=main_folder_id, fields='id', supportsAllDrives=True).execute()
         except Exception as e:
-            if "404" in str(e):
-                return False, "❌ Dossier racine introuvable ou accès refusé. Vérifiez que vous avez partagé le dossier GDrive avec l'email de votre bot Google (en tant qu'Éditeur)."
-            return False, f"❌ Erreur accès GDrive : {e}"
+            # Fallback : Recherche par nom "PARAPHARM"
+            query = "mimeType='application/vnd.google-apps.folder' and name='PARAPHARM' and trashed=false"
+            results = service.files().list(q=query, spaces='drive', fields='files(id, name)', supportsAllDrives=True).execute()
+            folders = results.get('files', [])
+            if folders:
+                main_folder_id = folders[0]['id']
+            else:
+                # Debug : Lister ce que le bot voit pour aider l'utilisateur
+                all_files = service.files().list(pageSize=10, fields='files(id, name)').execute().get('files', [])
+                visible = ", ".join([f['name'] for f in all_files]) if all_files else "Rien (Dossier non partagé ?)"
+                return False, f"❌ Accès refusé. Le bot ne voit que : {visible}. Assurez-vous d'avoir partagé le dossier PARAPHARM avec l'email du bot."
             
-        if main_folder_id == "VOTRE_ID_DE_DOSSIER_GDRIVE_ICI":
-            main_folder_id = find_or_create_folder(service, "Test_Para_Data")
-            
-        # Trouver ou créer le dossier Images
+        # Trouver ou créer le dossier image_stock
         images_folder_id = find_or_create_folder(service, "image_stock", parent_id=main_folder_id)
         
         # 1. Upload Database et Users
