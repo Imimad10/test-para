@@ -12,7 +12,6 @@ SCOPES = ['https://www.googleapis.com/auth/drive']
 # ID du dossier racine Google Drive (PARAPHARM)
 GDRIVE_FOLDER_ID = st.secrets.get("GDRIVE_FOLDER_ID", "1XalJubOiIDdpUIwCy6NFZeu3UliUU4Fb")
 
-@st.cache_resource
 def get_gdrive_service():
     """Initialise et retourne le service Google Drive."""
     creds_dict = None
