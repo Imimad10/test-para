@@ -1256,18 +1256,20 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
         with tabs[t_tabs_names.index("🔄 Sync Excel")]:
             st.subheader("🔄 Synchronisation & Persistance")
             
-            # --- NOUVEAU : BOUTON DE SAUVEGARDE GITHUB ---
-            st.markdown("### 💾 Sauvegarde Permanente")
-            st.warning("⚠️ Sur Streamlit Cloud, vos modifications (images, produits) sont perdues si l'app redémarre. Cliquez ci-dessous pour les enregistrer sur GitHub.")
-            if st.button("🚀 SAUVEGARDER TOUT SUR GITHUB (Permanent)", type="primary", use_container_width=True):
-                with st.spinner("Synchronisation avec GitHub en cours..."):
-                    success, msg = sync_to_github("Sauvegarde manuelle utilisateur")
+            # --- NOUVEAU : BOUTON DE SAUVEGARDE GDRIVE ---
+            st.markdown("### 💾 Sauvegarde Permanente (Google Drive)")
+            st.warning("⚠️ Sur Streamlit Cloud, vos modifications (images, produits) sont perdues si l'app redémarre. Cliquez ci-dessous pour les enregistrer sur Google Drive.")
+            if st.button("🚀 SAUVEGARDER TOUT SUR GDRIVE (Permanent)", type="primary", use_container_width=True):
+                with st.spinner("Synchronisation avec Google Drive en cours..."):
+                    from utils.gdrive_api import sync_to_gdrive
+                    success, msg = sync_to_gdrive("Sauvegarde manuelle utilisateur")
                     if success: st.success(msg)
                     else: st.error(msg)
             
-            if st.button("🔄 RESTAURER DEPUIS GITHUB (Récupérer les photos)", type="secondary", use_container_width=True):
+            if st.button("🔄 RESTAURER DEPUIS GDRIVE (Récupérer les données)", type="secondary", use_container_width=True):
                 with st.spinner("Restauration en cours..."):
-                    success, msg = restore_from_github()
+                    from utils.gdrive_api import restore_from_gdrive
+                    success, msg = restore_from_gdrive()
                     if success: 
                         st.success(msg)
                         st.rerun()
@@ -1655,32 +1657,27 @@ elif menu == "⚙️ Admin":
                 st.success("Système mis à jour !")
         
         st.divider()
-        st.subheader("☁️ Checkup Pictures & Sauvegarde GitHub")
-        st.info("Utilisez ces boutons pour synchroniser vos images avec le dépôt GitHub.")
+        st.subheader("☁️ Checkup Pictures & Sauvegarde Google Drive")
+        st.info("Utilisez ces boutons pour synchroniser vos images et données avec le compte Google Drive de l'entreprise.")
         col_g1, col_g2, col_g3 = st.columns(3)
         
-        if col_g1.button("⬇️ Checkup (Récupérer de GitHub)", use_container_width=True):
-            with st.spinner("Vérification des nouvelles images sur GitHub..."):
-                import subprocess
-                try:
-                    res = subprocess.run(["git", "pull"], cwd=BASE_DIR, capture_output=True, text=True)
-                    st.success("Checkup terminé ! \n\n" + res.stdout)
-                except Exception as e:
-                    st.error(f"Erreur : {e}")
+        if col_g1.button("⬇️ Checkup (Récupérer de GDrive)", use_container_width=True):
+            with st.spinner("Vérification et téléchargement depuis Google Drive..."):
+                from utils.gdrive_api import restore_from_gdrive
+                success, msg = restore_from_gdrive()
+                if success:
+                    st.success(msg)
+                else:
+                    st.error(msg)
                     
-        if col_g2.button("⬆️ Sauvegarder vers GitHub", use_container_width=True):
-            with st.spinner("Envoi des images et de la base de données vers GitHub..."):
-                import subprocess
-                try:
-                    subprocess.run(["git", "add", "images_stock/", "database_para.csv", "paratest.py"], cwd=BASE_DIR)
-                    subprocess.run(["git", "commit", "-m", f"Backup automatique via app le {datetime.now().strftime('%Y-%m-%d %H:%M')}"], cwd=BASE_DIR)
-                    res = subprocess.run(["git", "push"], cwd=BASE_DIR, capture_output=True, text=True)
-                    if "Everything up-to-date" in res.stdout or "Everything up-to-date" in res.stderr:
-                        st.info("Rien de nouveau à sauvegarder. Tout est à jour.")
-                    else:
-                        st.success("Backup GitHub réussi ! \n\n" + res.stdout + res.stderr)
-                except Exception as e:
-                    st.error(f"Erreur : {e}")
+        if col_g2.button("⬆️ Sauvegarder vers GDrive", use_container_width=True):
+            with st.spinner("Envoi des images et de la base de données vers Google Drive..."):
+                from utils.gdrive_api import sync_to_gdrive
+                success, msg = sync_to_gdrive()
+                if success:
+                    st.success(msg)
+                else:
+                    st.error(msg)
 
         if col_g3.button("📦 Créer un ZIP (Images)", use_container_width=True):
             with st.spinner("Création de l'archive ZIP..."):
