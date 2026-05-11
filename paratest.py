@@ -1787,6 +1787,31 @@ elif menu == "⚙️ Admin":
         
         st.divider()
         st.subheader("☁️ Checkup Pictures & Sauvegarde Google Drive")
+        
+        # --- Diagnostic GDrive ---
+        try:
+            from utils.gdrive_api import get_gdrive_service, get_main_folder_id, get_remote_file_id
+            service = get_gdrive_service()
+            main_id = get_main_folder_id()
+            if service and main_id:
+                img_folder_id = get_remote_file_id(service, "image_stock", main_id)
+                if img_folder_id:
+                    query = f"'{img_folder_id}' in parents and trashed=false"
+                    results = service.files().list(q=query, fields='files(id)').execute()
+                    nb_drive = len(results.get('files', []))
+                    nb_local = len(os.listdir(IMG_DIR)) if os.path.exists(IMG_DIR) else 0
+                    
+                    c_d1, c_d2 = st.columns(2)
+                    c_d1.metric("Photos sur GDrive", nb_drive)
+                    c_d2.metric("Photos locales", nb_local)
+                    
+                    if nb_drive == 0:
+                        st.warning("⚠️ Aucune photo trouvée dans le dossier 'image_stock' de Google Drive. Vérifiez le nom du dossier et le contenu.")
+                    elif nb_drive > nb_local:
+                        st.info(f"💡 Il y a {nb_drive - nb_local} nouvelles photos sur Drive. Cliquez sur 'Checkup' pour les récupérer.")
+        except:
+            st.error("Impossible de lire les statistiques GDrive pour le moment.")
+            
         st.info("Utilisez ces boutons pour synchroniser vos images et données avec le compte Google Drive de l'entreprise.")
         col_g1, col_g2, col_g3 = st.columns(3)
         
