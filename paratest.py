@@ -941,24 +941,21 @@ def show_details(row):
             with st.expander("🤖 Assistant Expert IA (Conseils)", expanded=True):
                 st.chat_message("assistant").write(f"Bonjour ! Je suis votre conseiller **Pharmaciel AI**. Je connais très bien le produit **{row['Produit']}** du laboratoire **{row['Laboratoire']}**. Comment puis-je vous aider ?")
                 
-                # Récupération de la clé API Gemini depuis les settings
-                api_key = settings.get('gemini_key', '')
-                
                 # Champ de question
                 q_key = f"ai_query_{row['Produit']}_{row['Laboratoire']}"
                 user_q = st.text_input("Posez votre question ici...", key=q_key, placeholder="Ex: C'est pour quel type de peau ? Routine conseillée ?")
                 
                 if user_q:
                     with st.spinner("L'expert IA analyse votre demande..."):
-                        if api_key:
+                        # On récupère les deux clés
+                        gem_key = settings.get('gemini_key', '').strip()
+                        or_key = settings.get('openrouter_key', '').strip()
+                        ai_provider = settings.get('ai_provider', 'Google Gemini')
+                        
+                        if (ai_provider == "Google Gemini" and gem_key) or (ai_provider == "OpenRouter" and or_key):
                             try:
-                                api_key = api_key.strip()
                                 r = ""
-                                
-                                # Choix du fournisseur
-                                ai_provider = settings.get('ai_provider', 'Google Gemini')
-                                
-                                if ai_provider == "OpenRouter" and settings.get('openrouter_key'):
+                                if ai_provider == "OpenRouter":
                                     # Logic OpenRouter
                                     or_key = settings.get('openrouter_key').strip()
                                     headers = {
