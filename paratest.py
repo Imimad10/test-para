@@ -1031,38 +1031,59 @@ def login():
         except: pass
 
     if not st.session_state.auth:
-        if os.path.exists("logo.png"):
-            st.image("logo.png", width=150)
-        st.title("🔐 Pharmaciel Pro")
-        st.success("👋 Vous êtes client ? Accédez directement à notre catalogue sans identifiant.")
-        if st.button("🌐 VOIR LE CATALOGUE PRODUITS", type="primary", use_container_width=True):
-            st.session_state.auth, st.session_state.user_role, st.session_state.current_user = True, "Client", "Visiteur"
-            add_log("Accès Visiteur")
-            st.rerun()
-        
-        st.divider()
-        with st.expander("🔑 Espace Collaborateur (Connexion)", expanded=False):
-            with st.form("login_form"):
-                u = st.text_input("Identifiant")
-                p = st.text_input("Mot de passe", type="password")
-                remember = st.checkbox("Rester connecté")
-                if st.form_submit_button("Se connecter"):
-                    role = None
-                    if u == "admin" and p == "1992":
-                        role, user_name = "Responsable", "Admin Suprême"
-                    else:
-                        users = load_users()
-                        match = users[(users['user'] == u) & (users['pw'].astype(str) == p)]
-                        if not match.empty:
-                            role, user_name = match['role'].values[0], u
-                    
-                    if role:
-                        st.session_state.auth, st.session_state.user_role, st.session_state.current_user = True, role, user_name
-                        if remember:
-                            with open(SESSION_FILE, 'w') as f: json.dump({"user": user_name, "role": role}, f)
-                        add_log("Connexion Manuelle")
-                        st.rerun()
-                    else: st.error("Identifiants incorrects.")
+        # Premium centered login layout
+        _, col_login, _ = st.columns([1, 2, 1])
+        with col_login:
+            # Hero branding header
+            if os.path.exists("logo.png"):
+                st.image("logo.png", width=120)
+            st.markdown("""
+            <div class="login-header">
+                <div class="login-title">💊 Pharmaciel Pro</div>
+                <div class="login-subtitle">Votre espace parapharmacie professionnel.<br>Accès client immédiat — aucun identifiant requis.</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # Client access card
+            st.markdown("""
+            <div class="client-portal-card">
+                <div class="portal-info">
+                    <h3>🌐 Accès Visiteur Libre</h3>
+                    <p>Parcourez notre catalogue de produits, consultez les fiches détaillées et passez commande via WhatsApp — sans compte nécessaire.</p>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button("🛍️ ACCÉDER AU CATALOGUE", type="primary", use_container_width=True):
+                st.session_state.auth, st.session_state.user_role, st.session_state.current_user = True, "Client", "Visiteur"
+                add_log("Accès Visiteur")
+                st.rerun()
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            # Employee login expander
+            with st.expander("🔑 Espace Collaborateur", expanded=False):
+                with st.form("login_form"):
+                    u = st.text_input("Identifiant", placeholder="Votre identifiant")
+                    p = st.text_input("Mot de passe", type="password", placeholder="••••••••")
+                    remember = st.checkbox("Rester connecté")
+                    if st.form_submit_button("Se connecter", use_container_width=True):
+                        role = None
+                        if u == "admin" and p == "1992":
+                            role, user_name = "Responsable", "Admin Suprême"
+                        else:
+                            users = load_users()
+                            match = users[(users['user'] == u) & (users['pw'].astype(str) == p)]
+                            if not match.empty:
+                                role, user_name = match['role'].values[0], u
+                        
+                        if role:
+                            st.session_state.auth, st.session_state.user_role, st.session_state.current_user = True, role, user_name
+                            if remember:
+                                with open(SESSION_FILE, 'w') as f: json.dump({"user": user_name, "role": role}, f)
+                            add_log("Connexion Manuelle")
+                            st.rerun()
+                        else:
+                            st.error("❌ Identifiants incorrects. Vérifiez et réessayez.")
         st.stop()
 
 # --- 4. INTERFACE ---
@@ -1071,16 +1092,23 @@ df_para = load_data()
 
 # --- SIDEBAR : NAVIGATION & FILTRES ---
 with st.sidebar:
+    # Premium logo + user profile strip
     if os.path.exists("logo.png"):
         st.image("logo.png", use_container_width=True)
-    st.markdown(f"## 👤 {st.session_state.current_user}")
-    if st.session_state.user_role != "Client":
-        st.write(f"Rôle : **{st.session_state.user_role}**")
+    
+    role_icons = {"Responsable": "👑", "Commercial": "💼", "Client": "🌐", "Visiteur": "👁️"}
+    role_icon = role_icons.get(st.session_state.user_role, "👤")
+    st.markdown(f"""
+    <div style="background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%); 
+                border: 1px solid var(--border-color); border-radius: 14px; padding: 14px 16px; margin-bottom: 16px;">
+        <div style="font-size: 1.05rem; font-weight: 700; color: var(--primary-color);">{role_icon} {st.session_state.current_user}</div>
+        <div style="font-size: 0.75rem; opacity: 0.55; text-transform: uppercase; letter-spacing: 0.8px; margin-top: 3px;">{st.session_state.user_role}</div>
+    </div>
+    """, unsafe_allow_html=True)
     
     # Toggle Vue Mobile
     if 'mobile_mode' not in st.session_state:
         st.session_state.mobile_mode = False
-    
     st.session_state.mobile_mode = st.toggle("📱 Mode Mobile", value=st.session_state.mobile_mode)
     
     st.divider()
@@ -1102,11 +1130,8 @@ with st.sidebar:
         f_labo = st.selectbox("Laboratoire", ["Tous"] + sorted([l for l in df_para['Laboratoire'].unique() if l]))
         f_alerte = st.selectbox("Alertes Stock/DDP", ["Aucune", "Stock Bas (<5)", "Péremption Proche"])
         
-        if st.button("🔄 Réinitialiser tous les filtres", use_container_width=True):
+        if st.button("🔄 Réinitialiser filtres", use_container_width=True):
             st.session_state.page = 1
-            # On peut utiliser st.rerun() pour tout remettre à zéro si on utilise des clés
-            # Mais ici on va juste inciter l'utilisateur à vider la recherche
-            st.info("Filtres réinitialisés. Veuillez effacer le champ de recherche si nécessaire.")
             st.rerun()
             
         st.divider()
@@ -1117,20 +1142,19 @@ with st.sidebar:
         promo_df = df_para[df_para['Promo'] == True]
         if not promo_df.empty:
             promo_buf = generate_promo_flyer(df_para)
-            st.download_button("🔥 Télécharger Flyer PROMO", promo_buf, "Promotions_Pharmaciel.pdf", "application/pdf", use_container_width=True)
+            st.download_button("🔥 Flyer PROMO", promo_buf, "Promotions_Pharmaciel.pdf", "application/pdf", use_container_width=True)
 
     st.divider()
 
     # Panier Sidebar
     if st.session_state.cart:
-        st.subheader("🛒 Votre Panier")
+        st.markdown("### 🛒 Votre Panier")
         total_panier = 0
         items_to_remove = []
         for p_name, details in st.session_state.cart.items():
             c_p1, c_p2 = st.columns([3, 1])
             new_qty = c_p1.number_input(f"{p_name}", min_value=1, value=details['qty'], key=f"q_side_{p_name}")
             st.session_state.cart[p_name]['qty'] = new_qty
-            
             if c_p2.button("❌", key=f"del_{p_name}"):
                 items_to_remove.append(p_name)
             total_panier += st.session_state.cart[p_name]['qty'] * details['price']
@@ -1138,10 +1162,10 @@ with st.sidebar:
         for item in items_to_remove:
             del st.session_state.cart[item]
             st.rerun()
-            
-        st.write(f"**Total : {total_panier} DA**")
-        msg_cart = f"Bonjour Pharmaciel, je souhaite commander :\n" + "\n".join([f"- {k} (x{v['qty']})" for k,v in st.session_state.cart.items()])
-        st.link_button("🚀 Envoyer WhatsApp", f"https://wa.me/?text={urllib.parse.quote(msg_cart)}", use_container_width=True)
+        
+        st.markdown(f"<div style='font-size:1.1rem; font-weight:700; color:var(--primary-color); margin:10px 0;'>Total : {total_panier:,.0f} DA</div>", unsafe_allow_html=True)
+        msg_cart = "Bonjour Pharmaciel, je souhaite commander :\n" + "\n".join([f"- {k} (x{v['qty']})" for k,v in st.session_state.cart.items()])
+        st.link_button("🚀 Commander via WhatsApp", f"https://wa.me/?text={urllib.parse.quote(msg_cart)}", use_container_width=True)
         if st.button("🗑️ Vider le panier", use_container_width=True):
             st.session_state.cart = {}
             st.rerun()
@@ -1156,7 +1180,8 @@ with st.sidebar:
         if new_theme != st.session_state.theme:
             st.session_state.theme = new_theme
             st.rerun()
-            
+    
+    st.markdown("<br>", unsafe_allow_html=True)
     if st.button("🚪 Déconnexion", type="secondary", use_container_width=True):
         st.session_state.auth = False
         st.session_state.user_role = None
@@ -1213,7 +1238,13 @@ def add_photo_dialog(product_name):
                                 df_temp = load_data()
                                 df_temp.loc[df_temp['Produit'] == product_name, 'image_path'] = fname
                                 save_data(df_temp)
-                                st.success(f"Image récupérée depuis Drive po@st.dialog("Fiche Produit", width="large")
+                                st.success(f"Image récupérée depuis Drive pour {product_name} !")
+                                st.rerun()
+                    else: st.warning("Aucun fichier trouvé dans 'image_stock' sur Drive.")
+        except Exception as e:
+            st.error(f"Erreur GDrive : {e}")
+
+@st.dialog("Fiche Produit", width="large")
 def show_details(row):
     # Responsive columns for dialog
     n_cols_dialog = 1 if st.session_state.mobile_mode else 2
@@ -1419,11 +1450,7 @@ def show_details(row):
                             add_log("Question IA (Secours)", f"Produit: {row['Produit']} | Q: {user_q}")
                         
                         st.chat_message("user").write(user_q)
-                        st.chat_message("assistant").write(f"✨ **Réponse de l'expert :** {r}")uillez configurer la clé API Gemini dans les réglages."
-                        
-                        st.chat_message("user").write(user_q)
                         st.chat_message("assistant").write(f"✨ **Réponse de l'expert :** {r}")
-                        add_log("Question IA", f"Produit: {row['Produit']} | Q: {user_q}")
 
 # --- ONGLET 1 : CATALOGUE & PANIER ---
 if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
@@ -2046,17 +2073,18 @@ elif menu == "📊 Statistiques":
     img_ok = df_para[df_para['image_path'].str.len() > 3].shape[0]
     valeur_stock = (df_para['PPA'] * df_para['Quantité']).sum()
     stock_bas = df_para[df_para['Quantité'] < 5].shape[0]
+    promos = df_para[df_para['Promo'] == True].shape[0]
     
     n_cols_stats = 2 if st.session_state.mobile_mode else 4
     c_stats = st.columns(n_cols_stats)
-    c_stats[0].metric("Total Produits", total_produits)
+    c_stats[0].metric("📦 Total Produits", total_produits)
     if st.session_state.user_role == "Responsable":
-        c_stats[1 % n_cols_stats].metric("Valeur Stock", f"{valeur_stock:,.0f} DA")
+        c_stats[1 % n_cols_stats].metric("💰 Valeur Stock", f"{valeur_stock:,.0f} DA")
     else:
-        c_stats[1 % n_cols_stats].metric("Valeur Stock", "---")
-    c_stats[2 % n_cols_stats].metric("Taux Images", f"{int((img_ok/total_produits)*100)}%" if total_produits > 0 else "0%")
-    c_stats[3 % n_cols_stats].metric("Alertes Stock", stock_bas, delta=-stock_bas, delta_color="inverse")
-    
+        c_stats[1 % n_cols_stats].metric("💰 Valeur Stock", "---")
+    c_stats[2 % n_cols_stats].metric("🖼️ Taux Images", f"{int((img_ok/total_produits)*100)}%" if total_produits > 0 else "0%")
+    c_stats[3 % n_cols_stats].metric("⚠️ Alertes Stock", stock_bas, delta=-stock_bas, delta_color="inverse")
+
     if st.session_state.user_role == "Responsable":
         st.divider()
         st.subheader("💰 Performance Financière")
@@ -2065,21 +2093,98 @@ elif menu == "📊 Statistiques":
             ca_total = df_sales['Total'].sum()
             nb_ventes = len(df_sales)
             col_f1, col_f2 = st.columns(2)
-            col_f1.metric("Chiffre d'Affaires Cumulé", f"{ca_total:,.0f} DA")
-            col_f2.metric("Nombre de Ventes", nb_ventes)
+            col_f1.metric("🏧 Chiffre d'Affaires Cumulé", f"{ca_total:,.0f} DA")
+            col_f2.metric("🧾 Nombre de Ventes", nb_ventes)
         else:
             st.info("Aucune vente enregistrée pour le moment.")
     
     st.divider()
     col_chart1, col_chart2 = st.columns(2)
+    
     with col_chart1:
         st.subheader("📦 Top 10 Laboratoires")
-        labo_counts = df_para['Laboratoire'].value_counts().head(10)
-        st.bar_chart(labo_counts)
+        labo_counts = df_para['Laboratoire'].value_counts().head(10).sort_values()
+        fig_labo = go.Figure(go.Bar(
+            x=labo_counts.values,
+            y=labo_counts.index,
+            orientation='h',
+            marker=dict(
+                color=labo_counts.values,
+                colorscale=[[0, 'rgba(56,189,248,0.3)'], [1, 'rgba(56,189,248,1)']],
+                line=dict(color='rgba(56,189,248,0.5)', width=1)
+            ),
+            text=labo_counts.values,
+            textposition='outside',
+            textfont=dict(size=11)
+        ))
+        fig_labo.update_layout(
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            margin=dict(l=10, r=30, t=10, b=10),
+            height=320,
+            xaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)', showticklabels=False),
+            yaxis=dict(showgrid=False, tickfont=dict(size=11)),
+            font=dict(color='rgba(200,210,230,0.9)')
+        )
+        st.plotly_chart(fig_labo, use_container_width=True)
+
     with col_chart2:
         st.subheader("🏷️ Répartition par Famille")
-        famille_counts = df_para['Famille'].value_counts()
-        st.bar_chart(famille_counts)
+        famille_counts = df_para['Famille'].value_counts().head(8)
+        colors_donut = ['#38bdf8','#c084fc','#10b981','#f59e0b','#ef4444','#a78bfa','#34d399','#fb7185']
+        fig_famille = go.Figure(go.Pie(
+            labels=famille_counts.index,
+            values=famille_counts.values,
+            hole=0.55,
+            marker=dict(
+                colors=colors_donut,
+                line=dict(color='rgba(0,0,0,0.3)', width=2)
+            ),
+            textfont=dict(size=11),
+            hovertemplate='<b>%{label}</b><br>%{value} produits (%{percent})<extra></extra>'
+        ))
+        fig_famille.update_layout(
+            paper_bgcolor='rgba(0,0,0,0)',
+            margin=dict(l=10, r=10, t=10, b=10),
+            height=320,
+            legend=dict(
+                font=dict(size=10, color='rgba(200,210,230,0.9)'),
+                bgcolor='rgba(0,0,0,0)'
+            ),
+            annotations=[dict(
+                text=f'<b>{total_produits}</b><br>produits',
+                x=0.5, y=0.5, font_size=14,
+                showarrow=False,
+                font=dict(color='rgba(200,210,230,0.9)')
+            )]
+        )
+        st.plotly_chart(fig_famille, use_container_width=True)
+    
+    # Stock health bar chart
+    st.divider()
+    st.subheader("📉 Santé des Stocks par Famille")
+    stock_by_famille = df_para.groupby('Famille')['Quantité'].sum().sort_values(ascending=False).head(10)
+    fig_stock = go.Figure(go.Bar(
+        x=stock_by_famille.index,
+        y=stock_by_famille.values,
+        marker=dict(
+            color=stock_by_famille.values,
+            colorscale=[[0, 'rgba(239,68,68,0.7)'], [0.5, 'rgba(245,158,11,0.7)'], [1, 'rgba(16,185,129,0.9)']],
+            line=dict(color='rgba(255,255,255,0.1)', width=1)
+        ),
+        text=stock_by_famille.values,
+        textposition='outside',
+    ))
+    fig_stock.update_layout(
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        margin=dict(l=10, r=10, t=10, b=80),
+        height=300,
+        xaxis=dict(showgrid=False, tickangle=-30, tickfont=dict(size=10)),
+        yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.04)'),
+        font=dict(color='rgba(200,210,230,0.9)')
+    )
+    st.plotly_chart(fig_stock, use_container_width=True)
 
 # --- ONGLET 3 : ADMIN ---
 elif menu == "⚙️ Admin":
