@@ -18,6 +18,8 @@ from PIL import Image as PILImage, ImageOps
 from streamlit_extras.colored_header import colored_header
 from streamlit_extras.mention import mention
 from streamlit_extras.add_vertical_space import add_vertical_space
+import plotly.express as px
+import plotly.graph_objects as go
 
 # --- 1. CONFIGURATION & CHEMINS ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -93,158 +95,234 @@ def load_users():
 def apply_custom_theme(theme_choice):
     themes = {
         "Clair Modern ❄️": {
-            "bg": "linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)",
-            "card_bg": "rgba(255, 255, 255, 0.8)",
-            "text": "#1e293b",
+            "bg": "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)",
+            "card_bg": "rgba(255, 255, 255, 0.85)",
+            "text": "#0f172a",
             "sidebar_bg": "#ffffff",
-            "primary": "#007bff",
-            "accent": "#0056b3",
-            "sidebar_text": "#1e293b",
+            "primary": "#0284c7",
+            "primary_grad": "linear-gradient(90deg, #0284c7, #3b82f6)",
+            "accent": "#0369a1",
+            "sidebar_text": "#0f172a",
             "input_bg": "#ffffff",
-            "input_text": "#1e293b"
+            "input_text": "#0f172a",
+            "border": "rgba(15, 23, 42, 0.08)",
+            "glow": "rgba(2, 132, 199, 0.15)",
+            "shadow": "0 10px 30px rgba(15, 23, 42, 0.05)"
         },
         "Sombre Élite 🌙": {
-            "bg": "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
-            "card_bg": "rgba(30, 41, 59, 0.7)",
-            "text": "#f8fafc",
-            "sidebar_bg": "#0f172a",
-            "primary": "#38bdf8",
-            "accent": "#0ea5e9",
-            "sidebar_text": "#f8fafc",
-            "input_bg": "#334155",
-            "input_text": "#f8fafc"
+            "bg": "linear-gradient(135deg, #0b0f19 0%, #111827 50%, #030712 100%)",
+            "card_bg": "rgba(22, 28, 45, 0.65)",
+            "text": "#f3f4f6",
+            "sidebar_bg": "#090d16",
+            "primary": "#d97706",
+            "primary_grad": "linear-gradient(90deg, #d97706, #f59e0b)",
+            "accent": "#b45309",
+            "sidebar_text": "#f3f4f6",
+            "input_bg": "#1f2937",
+            "input_text": "#f3f4f6",
+            "border": "rgba(255, 255, 255, 0.07)",
+            "glow": "rgba(245, 158, 11, 0.2)",
+            "shadow": "0 10px 35px rgba(0, 0, 0, 0.3)"
         },
         "Émeraude Royal 👑": {
-            "bg": "linear-gradient(135deg, #064e3b 0%, #022c22 100%)",
-            "card_bg": "rgba(6, 78, 59, 0.6)",
+            "bg": "linear-gradient(135deg, #021e17 0%, #053327 50%, #010c08 100%)",
+            "card_bg": "rgba(8, 48, 39, 0.7)",
             "text": "#ecfdf5",
-            "sidebar_bg": "#022c22",
-            "primary": "#fbbf24",
-            "accent": "#f59e0b",
-            "sidebar_text": "#fbbf24",
-            "input_bg": "rgba(255, 255, 255, 0.1)",
-            "input_text": "#ffffff"
+            "sidebar_bg": "#01140f",
+            "primary": "#10b981",
+            "primary_grad": "linear-gradient(90deg, #059669, #10b981)",
+            "accent": "#047857",
+            "sidebar_text": "#ecfdf5",
+            "input_bg": "#03271f",
+            "input_text": "#ecfdf5",
+            "border": "rgba(16, 185, 129, 0.12)",
+            "glow": "rgba(16, 185, 129, 0.25)",
+            "shadow": "0 10px 35px rgba(0, 0, 0, 0.3)"
         },
         "Aurore Boréale 🌌": {
-            "bg": "linear-gradient(135deg, #4c1d95 0%, #1e1b4b 100%)",
-            "card_bg": "rgba(30, 27, 75, 0.6)",
-            "text": "#f5f3ff",
-            "sidebar_bg": "#1e1b4b",
-            "primary": "#a78bfa",
-            "accent": "#8b5cf6",
-            "sidebar_text": "#f5f3ff",
-            "input_bg": "rgba(255, 255, 255, 0.1)",
-            "input_text": "#ffffff"
+            "bg": "linear-gradient(135deg, #0d0a1b 0%, #171032 50%, #06040d 100%)",
+            "card_bg": "rgba(29, 21, 56, 0.65)",
+            "text": "#fdf4ff",
+            "sidebar_bg": "#0a0715",
+            "primary": "#c084fc",
+            "primary_grad": "linear-gradient(90deg, #a855f7, #c084fc)",
+            "accent": "#9333ea",
+            "sidebar_text": "#fdf4ff",
+            "input_bg": "rgba(29, 21, 56, 0.4)",
+            "input_text": "#fdf4ff",
+            "border": "rgba(192, 132, 252, 0.15)",
+            "glow": "rgba(192, 132, 252, 0.3)",
+            "shadow": "0 10px 35px rgba(0, 0, 0, 0.35)"
         },
         "Cyberpunk ⚡": {
-            "bg": "linear-gradient(135deg, #000000 0%, #09090b 100%)",
-            "card_bg": "rgba(20, 20, 20, 0.9)",
+            "bg": "linear-gradient(135deg, #000000 0%, #0c0a0f 100%)",
+            "card_bg": "rgba(15, 12, 20, 0.85)",
             "text": "#00ff9f",
             "sidebar_bg": "#000000",
-            "primary": "#ff003c",
-            "accent": "#05d9e8",
-            "sidebar_text": "#05d9e8",
-            "input_bg": "#111111",
-            "input_text": "#00ff9f"
+            "primary": "#ff0055",
+            "primary_grad": "linear-gradient(90deg, #ff0055, #ff0077)",
+            "accent": "#ff0055",
+            "sidebar_text": "#00ff9f",
+            "input_bg": "#100d14",
+            "input_text": "#00ff9f",
+            "border": "rgba(0, 255, 159, 0.25)",
+            "glow": "rgba(255, 0, 85, 0.45)",
+            "shadow": "0 0 25px rgba(0, 255, 159, 0.05)"
         },
         "Antigravity Dark 🌌": {
-            "bg": "linear-gradient(135deg, #020617 0%, #0f172a 100%)",
-            "card_bg": "rgba(15, 23, 42, 0.4)",
+            "bg": "radial-gradient(circle at 50% 0%, rgba(14, 165, 233, 0.12) 0%, transparent 60%), linear-gradient(135deg, #020617 0%, #0b0f19 100%)",
+            "card_bg": "rgba(17, 24, 39, 0.6)",
             "text": "#f8fafc",
-            "sidebar_bg": "#020617",
+            "sidebar_bg": "#030712",
             "primary": "#38bdf8",
-            "accent": "#818cf8",
+            "primary_grad": "linear-gradient(90deg, #0ea5e9, #38bdf8)",
+            "accent": "#0284c7",
             "sidebar_text": "#38bdf8",
             "input_bg": "#1e293b",
-            "input_text": "#f8fafc"
+            "input_text": "#f8fafc",
+            "border": "rgba(56, 189, 248, 0.15)",
+            "glow": "rgba(56, 189, 248, 0.3)",
+            "shadow": "0 10px 35px rgba(0, 0, 0, 0.3)"
         },
         "Pharmaciel Premium 🧪": {
-            "bg": "linear-gradient(135deg, #e0f2f1 0%, #ffffff 100%)",
+            "bg": "linear-gradient(135deg, #f0fdfa 0%, #e0f2f1 50%, #ffffff 100%)",
             "card_bg": "rgba(255, 255, 255, 0.9)",
-            "text": "#004d40",
-            "sidebar_bg": "#00695c",
-            "primary": "#26a69a",
-            "accent": "#00796b",
+            "text": "#0f3c36",
+            "sidebar_bg": "#0a443b",
+            "primary": "#0d9488",
+            "primary_grad": "linear-gradient(90deg, #0d9488, #14b8a6)",
+            "accent": "#0f766e",
             "sidebar_text": "#e0f2f1",
             "input_bg": "#ffffff",
-            "input_text": "#004d40"
+            "input_text": "#0f3c36",
+            "border": "rgba(13, 148, 136, 0.12)",
+            "glow": "rgba(13, 148, 136, 0.2)",
+            "shadow": "0 10px 30px rgba(13, 148, 136, 0.05)"
         }
     }
     
     t = themes.get(theme_choice, themes["Clair Modern ❄️"])
     
+    # CSS variables definition
+    css_vars = f"""
+    :root {{
+        --bg-val: {t['bg']};
+        --card-bg: {t['card_bg']};
+        --text-color: {t['text']};
+        --sidebar-bg: {t['sidebar_bg']};
+        --sidebar-text: {t['sidebar_text']};
+        --primary-color: {t['primary']};
+        --primary-gradient: {t['primary_grad']};
+        --accent-color: {t['accent']};
+        --input-bg: {t['input_bg']};
+        --input-text: {t['input_text']};
+        --border-color: {t['border']};
+        --glow-color: {t['glow']};
+        --shadow-val: {t['shadow']};
+    }}
+    """
+    
     st.markdown(f"""
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Orbitron:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Orbitron:wght@400;700&display=swap');
         
+        {css_vars}
+        
+        /* Global Base Override */
         html, body, [class*="css"] {{
-            font-family: 'Outfit', 'Segoe UI Emoji', sans-serif;
+            font-family: 'Plus Jakarta Sans', sans-serif;
         }}
         
         {".stApp { font-family: 'Orbitron', 'Segoe UI Emoji', sans-serif !important; }" if theme_choice == "Cyberpunk ⚡" else ""}
-
+        
         .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {{
-            background: {t['bg']} !important;
+            background: var(--bg-val) !important;
             background-attachment: fixed !important;
-            color: {t['text']} !important;
-            transition: all 0.5s ease;
+            color: var(--text-color) !important;
+            transition: all 0.4s ease;
         }}
         
-        {"""
-        @keyframes gradientBG {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-        .stApp {
-            background: linear-gradient(-45deg, #e0f2f1, #ffffff, #b2dfdb, #e0f2f1) !important;
-            background-size: 400% 400% !important;
-            animation: gradientBG 15s ease infinite !important;
-        }
-        h1, h2, h3 {
-            color: #00695c !important;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
-        }
-        """ if theme_choice == "Pharmaciel Premium 🧪" else ""}
-        
-        {"""
-        h1, h2, h3, .stHeader {
-            color: #38bdf8 !important;
-            font-weight: 700;
-        }
-        [data-testid="stMetricValue"] {
-            color: #38bdf8 !important;
-        }
-        """ if theme_choice == "Antigravity Dark 🌌" else ""}
-        
-        /* Typography Fixes */
+        /* Clean up header and footers */
         [data-testid="stHeader"] {{
             background: transparent !important;
+            backdrop-filter: none !important;
+        }}
+        footer {{
+            visibility: hidden !important;
+            display: none !important;
+        }}
+        
+        h1, h2, h3, h4, h5, h6 {{
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700 !important;
+            letter-spacing: -0.03em !important;
+            color: var(--text-color) !important;
+        }}
+        
+        h1 {{
+            font-size: 2.2rem !important;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.8rem !important;
         }}
         
         label, .stMarkdown p, .stText, .stCaption, [data-testid="stWidgetLabel"] p {{
-            color: {t['text']} !important;
+            color: var(--text-color) !important;
             opacity: 1 !important;
         }}
         
-        /* Navigation Radio Buttons */
-        div[data-testid="stHorizontalRadio"] label p {{
-            color: {t['text']} !important;
-            font-weight: 600 !important;
-            font-size: 1rem !important;
+        /* Sidebar Relooking */
+        [data-testid="stSidebar"] {{
+            background-color: var(--sidebar-bg) !important;
+            border-right: 1px solid var(--border-color) !important;
+            box-shadow: 10px 0 30px rgba(0, 0, 0, 0.15);
         }}
-
-        /* Promotion Marquee */
+        
+        [data-testid="stSidebar"] h2, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span {{
+            color: var(--sidebar-text) !important;
+        }}
+        
+        /* Horizontal Navigation Buttons / Sidebar items */
+        div[data-testid="stSidebar"] div[data-testid="stRadio"] label p {{
+            font-weight: 600 !important;
+            font-size: 0.95rem !important;
+            letter-spacing: 0.2px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }}
+        
+        div[data-testid="stSidebar"] div[data-testid="stRadio"] label:hover p {{
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--primary-color) !important;
+            transform: translateX(4px);
+        }}
+        
+        /* Modern Glass Ticker (Marquee) */
         .marquee {{
             width: 100%;
             overflow: hidden;
-            background: {t['primary']};
-            color: {t['sidebar_bg']};
-            padding: 8px 0;
-            font-weight: bold;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            background: rgba(255, 255, 255, 0.03) !important;
+            border: 1px solid var(--border-color) !important;
+            backdrop-filter: blur(12px) !important;
+            -webkit-backdrop-filter: blur(12px) !important;
+            color: var(--text-color) !important;
+            padding: 10px 0;
+            font-weight: 600;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-val);
+            position: relative;
+        }}
+        
+        .marquee::before {{
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 2px;
+            background: var(--primary-gradient);
+            box-shadow: 0 0 10px var(--glow-color);
         }}
         
         .marquee div {{
@@ -257,203 +335,384 @@ def apply_custom_theme(theme_choice):
             0% {{ transform: translateX(100%); }}
             100% {{ transform: translateX(-100%); }}
         }}
-
-        /* Glassmorphism for Containers */
-        [data-testid="stVerticalBlock"] > div > div > div > div.stColumn, .stContainer, div[data-testid="stExpander"] {{
-            border-radius: 15px !important;
-            border: 1px solid rgba(255,255,255,0.1) !important;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2) !important;
-            background: {t['card_bg']} !important;
+        
+        /* Expander & Expandable Cards */
+        div[data-testid="stExpander"] {{
+            border-radius: 16px !important;
+            border: 1px solid var(--border-color) !important;
+            background: var(--card-bg) !important;
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
-            padding: 1.5rem;
-            margin-bottom: 1rem;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            overflow: hidden;
+            box-shadow: var(--shadow-val) !important;
+            margin-bottom: 1.2rem !important;
+            transition: all 0.3s ease;
         }}
         
-        /* Shine Effect on Hover */
-        [data-testid="stVerticalBlock"] > div > div > div > div.stColumn::after {{
-            content: '';
-            position: absolute;
-            top: 0; left: -150%;
-            width: 50%; height: 100%;
-            background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0) 100%);
-            transform: skewX(-25deg);
-            transition: 0.75s;
+        div[data-testid="stExpander"]:hover {{
+            border-color: var(--primary-color) !important;
         }}
         
-        [data-testid="stVerticalBlock"] > div > div > div > div.stColumn:hover::after {{
-            left: 150%;
-        }}
-
-        [data-testid="stVerticalBlock"] > div > div > div > div.stColumn:hover {{
-            transform: translateY(-8px) scale(1.02);
-            border-color: {t['primary']} !important;
+        /* Glassmorphic Container for Products (Streamlit 1.30+) */
+        div[data-testid="stContainerBorder"] {{
+            border-radius: 20px !important;
+            border: 1px solid var(--border-color) !important;
+            background: var(--card-bg) !important;
+            backdrop-filter: blur(16px) !important;
+            -webkit-backdrop-filter: blur(16px) !important;
+            box-shadow: var(--shadow-val) !important;
+            padding: 20px !important;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            overflow: visible !important;
         }}
         
-        /* Buttons */
-        .stButton > button {{
-            border-radius: 12px !important;
+        div[data-testid="stContainerBorder"]:hover {{
+            transform: translateY(-6px) !important;
+            border-color: var(--primary-color) !important;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3), 0 0 20px var(--glow-color) !important;
+        }}
+        
+        /* Tabs Styling */
+        div[data-testid="stTabBar"] {{
+            background: rgba(255, 255, 255, 0.02) !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 12px;
+            padding: 6px !important;
+            gap: 8px !important;
+            margin-bottom: 20px !important;
+        }}
+        
+        button[data-testid="stTab"] {{
+            border-radius: 8px !important;
             font-weight: 600 !important;
-            background-color: {t['primary']} !important;
-            color: {t['sidebar_bg']} !important;
+            font-size: 0.95rem !important;
+            color: var(--text-color) !important;
+            opacity: 0.7;
+            padding: 8px 16px !important;
             border: none !important;
-            padding: 0.6rem 1.2rem !important;
+            background: transparent !important;
             transition: all 0.3s ease !important;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
-            text-transform: uppercase;
-            letter-spacing: 1px;
         }}
         
-        .stButton > button:hover {{
-            background-color: {t['accent']} !important;
-            transform: translateY(-2px) scale(1.05) !important;
-            box-shadow: 0 8px 15px rgba(0,0,0,0.2) !important;
+        button[data-testid="stTab"][aria-selected="true"] {{
+            opacity: 1 !important;
+            background: var(--primary-gradient) !important;
+            color: #ffffff !important;
+            box-shadow: 0 4px 12px var(--glow-color) !important;
         }}
         
-        /* Sidebar */
-        [data-testid="stSidebar"] {{
-            background-color: {t['sidebar_bg']} !important;
-            border-right: 1px solid rgba(255,255,255,0.1);
-        }}
-        
-        /* Inputs & Selects Visibility Fix */
+        /* Modern Inputs Override */
         div[data-baseweb="select"], div[data-baseweb="input"], div[data-baseweb="textarea"] {{
-            background-color: {t['input_bg']} !important;
-            border-radius: 10px !important;
-            border: 1px solid rgba(255,255,255,0.2) !important;
+            background-color: var(--input-bg) !important;
+            border-radius: 12px !important;
+            border: 1px solid var(--border-color) !important;
+            transition: all 0.3s ease !important;
+        }}
+        
+        div[data-baseweb="select"]:focus-within, div[data-baseweb="input"]:focus-within, div[data-baseweb="textarea"]:focus-within {{
+            border-color: var(--primary-color) !important;
+            box-shadow: 0 0 10px var(--glow-color) !important;
         }}
         
         div[data-baseweb="select"] *, div[data-baseweb="input"] input, div[data-baseweb="textarea"] textarea {{
-            color: {t['input_text']} !important;
+            color: var(--input-text) !important;
         }}
-
-        /* Placeholder visibility */
+        
         input::placeholder, textarea::placeholder {{
-            color: {t['input_text']} !important;
+            color: var(--input-text) !important;
+            opacity: 0.5 !important;
+        }}
+        
+        /* Buttons Redesign */
+        .stButton > button {{
+            border-radius: 12px !important;
+            font-weight: 600 !important;
+            font-size: 0.9rem !important;
+            letter-spacing: 0.5px;
+            background: var(--primary-gradient) !important;
+            color: #ffffff !important;
+            border: none !important;
+            padding: 0.7rem 1.4rem !important;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15) !important;
+            text-transform: uppercase;
+        }}
+        
+        .stButton > button:hover {{
+            transform: translateY(-2px) !important;
+            box-shadow: 0 8px 20px var(--glow-color) !important;
+            opacity: 0.95;
+        }}
+        
+        .stButton > button:active {{
+            transform: translateY(1px) !important;
+        }}
+        
+        /* Secondary / Details buttons mapping */
+        .stButton > button[data-testid="baseButton-secondary"] {{
+            background: rgba(255, 255, 255, 0.05) !important;
+            border: 1px solid var(--border-color) !important;
+            color: var(--text-color) !important;
+            box-shadow: none !important;
+        }}
+        
+        .stButton > button[data-testid="baseButton-secondary"]:hover {{
+            background: var(--primary-gradient) !important;
+            color: #ffffff !important;
+            border-color: transparent !important;
+            box-shadow: 0 8px 20px var(--glow-color) !important;
+        }}
+        
+        /* Red PDF Action Buttons override */
+        div.stDownloadButton > button {{
+            background: linear-gradient(90deg, #ef4444, #dc2626) !important;
+            color: white !important;
+            border: none !important;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.25) !important;
+        }}
+        
+        div.stDownloadButton > button:hover {{
+            box-shadow: 0 8px 20px rgba(239, 68, 68, 0.4) !important;
+        }}
+        
+        /* Metrics Styling */
+        div[data-testid="stMetric"] {{
+            border: 1px solid var(--border-color) !important;
+            border-radius: 16px !important;
+            background: rgba(255, 255, 255, 0.02) !important;
+            backdrop-filter: blur(8px) !important;
+            -webkit-backdrop-filter: blur(8px) !important;
+            padding: 16px !important;
+            box-shadow: var(--shadow-val) !important;
+        }}
+        
+        [data-testid="stMetricValue"] {{
+            color: var(--primary-color) !important;
+            font-weight: 700;
+            font-size: 2.1rem !important;
+            text-shadow: 0 0 10px var(--glow-color);
+        }}
+        
+        [data-testid="stMetricLabel"] {{
+            font-weight: 600 !important;
             opacity: 0.7 !important;
         }}
         
-        /* Metric customization */
-        [data-testid="stMetricValue"] {{
-            color: {t['primary']} !important;
-            font-weight: 700;
-            text-shadow: 0 0 10px rgba(0,0,0,0.2);
-        }}
-        
-        /* Fixed Height Cards for Grid only (exclude dialogs) */
-        div[data-testid="stVerticalBlock"] > div > div > div > div.stColumn > div:not([data-testid="stDialog"]) {{
-             min-height: 420px !important;
-             display: flex;
-             flex-direction: column;
-             justify-content: space-between;
-        }}
-
-        /* Default for Catalog: Force uniform height and look */
+        /* Card Image Styling */
         [data-testid="column"] img {{
-            height: 220px !important;
+            height: 200px !important;
             width: 100% !important;
             object-fit: contain !important;
-            background-color: white !important; /* Standardize background for images with transparency */
+            background-color: #ffffff !important;
             border-radius: 12px !important;
-            padding: 10px !important;
-            border: 1px solid rgba(0,0,0,0.05) !important;
-            transition: transform 0.3s ease !important;
+            padding: 8px !important;
+            border: 1px solid rgba(255,255,255,0.05) !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+            transition: all 0.3s ease !important;
         }}
-
+        
         [data-testid="column"] img:hover {{
-            transform: scale(1.05);
-        }}
-
-        /* EXCEPTION for Dialogs (Details): Allow full size */
-        [data-testid="stDialog"] img, 
-        [data-testid="stDialog"] [data-testid="column"] img {{
-            height: auto !important;
-            max-height: 70vh !important;
-            width: auto !important;
-            max-width: 100% !important;
-            object-fit: scale-down !important;
-            background: transparent !important;
-            border: none !important;
-            padding: 0px !important;
-        }}
-
-        /* Headers */
-        h1, h2, h3 {{
-            font-weight: 700 !important;
-            letter-spacing: -1px;
-            color: {t['primary']} !important;
-            margin-bottom: 0.5rem !important;
+            transform: scale(1.04);
         }}
         
-        .stMarkdown p {{
-            color: {t['text']} !important;
-            margin-bottom: 0px !important;
+        /* Product visual structure */
+        .product-card-body {{
+            display: flex;
+            flex-direction: column;
+            padding: 8px 0;
+            flex-grow: 1;
+        }}
+        .product-labo {{
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 1px;
+            opacity: 0.5;
+            margin-bottom: 4px;
+        }}
+        .product-title {{
+            font-size: 1rem;
+            font-weight: 700;
+            line-height: 1.3;
+            margin-bottom: 8px;
+            height: 2.6rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }}
+        .product-price {{
+            font-size: 1.45rem;
+            font-weight: 800;
+            color: var(--primary-color);
+            margin-top: auto;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: baseline;
+        }}
+        .currency {{
+            font-size: 0.8rem;
+            font-weight: 600;
+            opacity: 0.7;
+            margin-left: 3px;
         }}
         
-        /* Custom PDF Button */
-        div.stDownloadButton > button {{
-            background-color: #e63946 !important;
-            color: white !important;
-            border: none !important;
+        .card-badges {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-bottom: 10px;
+            height: 22px;
+        }}
+        .card-badges-empty {{
+            height: 22px;
+            margin-bottom: 10px;
         }}
         
-        /* Toggle Styling */
-        div[data-testid="stToggle"] p {{
-            color: {t['text']} !important;
-            font-weight: 600 !important;
+        /* Dialog Custom Specs Card */
+        .detail-item {{
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 10px 14px;
+            display: flex;
+            flex-direction: column;
+        }}
+        .detail-icon {{
+            font-size: 1.2rem;
+            margin-bottom: 4px;
+        }}
+        .detail-label {{
+            font-size: 0.75rem;
+            opacity: 0.5;
+            text-transform: uppercase;
+            font-weight: 600;
+        }}
+        .detail-value {{
+            font-size: 0.95rem;
+            font-weight: 700;
         }}
         
-        /* Selectbox and Input Labels */
-        .stSelectbox label p, .stTextInput label p, .stNumberInput label p {{
-            color: {t['text']} !important;
-            font-weight: 600 !important;
+        .internal-stats-card {{
+            background: rgba(217, 119, 6, 0.05);
+            border: 1px solid rgba(217, 119, 6, 0.2);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 15px;
         }}
-
-        /* --- OPTIMISATIONS MOBILE --- */
-        @media (max-width: 768px) {{
-            [data-testid="stSidebar"] {{
-                width: 80vw !important;
-            }}
-            .stMetric {{
-                padding: 10px !important;
-            }}
-            [data-testid="stMetricValue"] {{
-                font-size: 1.5rem !important;
-            }}
-            h1 {{ font-size: 1.8rem !important; }}
-            h2 {{ font-size: 1.4rem !important; }}
-            
-            /* Ajustement des cartes en mode mobile */
-            div[data-testid="stVerticalBlock"] > div > div > div > div.stColumn {{
-                min-height: auto !important;
-                padding: 1rem !important;
-            }}
+        .stats-card-title {{
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: #f59e0b;
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
         }}
-        /* Floating WhatsApp Button */
+        .admin-grid {{
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }}
+        .admin-stat-item {{
+            display: flex;
+            flex-direction: column;
+        }}
+        .admin-stat-label {{
+            font-size: 0.75rem;
+            opacity: 0.6;
+        }}
+        .admin-stat-val {{
+            font-size: 1.05rem;
+            font-weight: 700;
+        }}
+        
+        /* Login screen premium additions */
+        .login-container {{
+            background: var(--card-bg) !important;
+            border: 1px solid var(--border-color) !important;
+            backdrop-filter: blur(20px) !important;
+            -webkit-backdrop-filter: blur(20px) !important;
+            border-radius: 24px !important;
+            padding: 40px !important;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3) !important;
+            text-align: center;
+        }}
+        .login-header {{
+            margin-bottom: 30px;
+        }}
+        .login-title {{
+            font-size: 2.4rem !important;
+            margin-bottom: 8px !important;
+        }}
+        .login-subtitle {{
+            font-size: 0.95rem;
+            opacity: 0.6;
+            line-height: 1.4;
+        }}
+        .client-portal-card {{
+            background: rgba(255, 255, 255, 0.02) !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 16px !important;
+            padding: 24px !important;
+            text-align: left;
+            margin-bottom: 20px;
+        }}
+        .portal-info h3 {{
+            margin-bottom: 6px !important;
+            font-size: 1.2rem !important;
+        }}
+        .portal-info p {{
+            font-size: 0.85rem;
+            opacity: 0.7;
+            margin-bottom: 16px;
+        }}
+        
+        /* Placeholder for No Image products */
+        .no-image-placeholder {{
+            height: 200px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.01) 0%, rgba(255,255,255,0.05) 100%);
+            border: 1px dashed var(--border-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 12px;
+            text-align: center;
+        }}
+        .placeholder-icon {{
+            font-size: 2.2rem;
+            margin-bottom: 6px;
+            filter: drop-shadow(0 0 8px var(--glow-color));
+        }}
+        .placeholder-text {{
+            font-size: 0.75rem;
+            opacity: 0.4;
+            font-weight: 600;
+        }}
+        
+        /* WhatsApp Floating Button */
         .whatsapp-float {{
             position: fixed;
             bottom: 30px;
             right: 30px;
-            background-color: #25d366;
+            background: linear-gradient(135deg, #25d366 0%, #128c7e 100%);
             color: white !important;
             border-radius: 50px;
             text-align: center;
-            width: 60px;
-            height: 60px;
-            box-shadow: 0px 4px 15px rgba(0,0,0,0.3);
+            width: 56px;
+            height: 56px;
+            box-shadow: 0px 8px 24px rgba(18, 140, 126, 0.4);
             z-index: 9999;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 30px;
             text-decoration: none;
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }}
         .whatsapp-float:hover {{
-            transform: scale(1.1);
+            transform: scale(1.1) translateY(-2px);
+            box-shadow: 0px 12px 30px rgba(18, 140, 126, 0.6);
             color: white !important;
         }}
     </style>
@@ -466,7 +725,7 @@ def apply_custom_theme(theme_choice):
     
     st.markdown(f"""
     <a href="https://wa.me/{primary_wa}" class="whatsapp-float" target="_blank">
-        <svg width="35" height="35" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M12.031 0C5.385 0 0 5.386 0 12.03c0 2.12.551 4.198 1.597 6.02L.031 24l6.105-1.603a11.972 11.972 0 0 0 5.895 1.543h.005c6.645 0 12.03-5.387 12.03-12.032C24.066 5.386 18.679 0 12.031 0zm0 21.968h-.005a9.963 9.963 0 0 1-5.075-1.378l-.364-.216-3.771.99.998-3.676-.237-.377a9.96 9.96 0 0 1-1.526-5.283c0-5.5 4.476-9.975 9.98-9.975 5.503 0 9.978 4.475 9.978 9.975s-4.475 9.975-9.978 9.975zm5.474-7.48c-.3-.15-1.776-.876-2.052-.976-.275-.101-.476-.15-.676.15-.2.302-.776.977-.951 1.177-.175.201-.351.226-.651.076a8.212 8.212 0 0 1-2.417-1.493 9.07 9.07 0 0 1-1.68-2.09c-.176-.301-.019-.464.131-.614.136-.135.301-.351.451-.526.151-.176.2-.301.302-.501.101-.201.05-.376-.025-.526-.075-.15-.676-1.63-.926-2.23-.243-.585-.49-.505-.676-.514-.175-.008-.376-.008-.576-.008s-.526.075-.801.376c-.275.301-1.052 1.028-1.052 2.508 0 1.48 1.077 2.91 1.227 3.111.15.2 2.122 3.238 5.14 4.542.718.309 1.278.494 1.716.632.72.228 1.375.195 1.894.118.58-.086 1.776-.726 2.026-1.428.25-.702.25-1.304.175-1.429-.075-.126-.275-.201-.575-.351z"/></svg>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M12.031 0C5.385 0 0 5.386 0 12.03c0 2.12.551 4.198 1.597 6.02L.031 24l6.105-1.603a11.972 11.972 0 0 0 5.895 1.543h.005c6.645 0 12.03-5.387 12.03-12.032C24.066 5.386 18.679 0 12.031 0zm0 21.968h-.005a9.963 9.963 0 0 1-5.075-1.378l-.364-.216-3.771.99.998-3.676-.237-.377a9.96 9.96 0 0 1-1.526-5.283c0-5.5 4.476-9.975 9.98-9.975 5.503 0 9.978 4.475 9.978 9.975s-4.475 9.975-9.978 9.975zm5.474-7.48c-.3-.15-1.776-.876-2.052-.976-.275-.101-.476-.15-.676.15-.2.302-.776.977-.951 1.177-.175.201-.351.226-.651.076a8.212 8.212 0 0 1-2.417-1.493 9.07 9.07 0 0 1-1.68-2.09c-.176-.301-.019-.464.131-.614.136-.135.301-.351.451-.526.151-.176.2-.301.302-.501.101-.201.05-.376-.025-.526-.075-.15-.676-1.63-.926-2.23-.243-.585-.49-.505-.676-.514-.175-.008-.376-.008-.576-.008s-.526.075-.801.376c-.275.301-1.052 1.028-1.052 2.508 0 1.48 1.077 2.91 1.227 3.111.15.2 2.122 3.238 5.14 4.542.718.309 1.278.494 1.716.632.72.228 1.375.195 1.894.118.58-.086 1.776-.726 2.026-1.428.25-.702.25-1.304.175-1.429-.075-.126-.275-.201-.575-.351z"/></svg>
     </a>
     """, unsafe_allow_html=True)
 
@@ -954,13 +1213,7 @@ def add_photo_dialog(product_name):
                                 df_temp = load_data()
                                 df_temp.loc[df_temp['Produit'] == product_name, 'image_path'] = fname
                                 save_data(df_temp)
-                                st.success(f"Image récupérée depuis Drive pour {product_name} !")
-                                st.rerun()
-                    else: st.warning("Aucun fichier trouvé dans 'image_stock' sur Drive.")
-        except Exception as e:
-            st.error(f"Erreur GDrive : {e}")
-
-@st.dialog("Fiche Produit", width="large")
+                                st.success(f"Image récupérée depuis Drive po@st.dialog("Fiche Produit", width="large")
 def show_details(row):
     # Responsive columns for dialog
     n_cols_dialog = 1 if st.session_state.mobile_mode else 2
@@ -968,34 +1221,106 @@ def show_details(row):
     
     img = get_image_base64(row['image_path'])
     with cols_dialog[0]:
-        if img: st.image(img)
-        else: st.warning("Image manquante")
+        if img: 
+            st.image(img)
+        else: 
+            st.markdown("""
+            <div class="no-image-placeholder" style="height:350px;">
+                <div class="placeholder-icon" style="font-size:4rem;">💊</div>
+                <div class="placeholder-text" style="font-size:1rem;">Visuel Indisponible</div>
+            </div>
+            """, unsafe_allow_html=True)
     
     # If mobile, we use the same column (cols_dialog[0]), else the second one
     target_col = cols_dialog[0] if st.session_state.mobile_mode else cols_dialog[1]
     
     with target_col:
         st.header(row['Produit'])
-        st.write(f"**🔬 Labo :** {row['Laboratoire']}")
-        st.write(f"**📅 DDP :** {row['DDP']}")
-        if 'Arrivage' in row and row['Arrivage']: st.write(f"**🚚 Arrivage :** {row['Arrivage']}")
-        if 'Dépôt' in row and row['Dépôt']: st.write(f"**🏠 Dépôt :** {row['Dépôt']}")
         
+        # Elegant HTML Specs Grid
+        specs_html = f"""
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px; margin-top: 15px;">
+            <div class="detail-item">
+                <span class="detail-icon">🔬</span>
+                <span class="detail-label">Laboratoire</span>
+                <span class="detail-value">{row['Laboratoire']}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-icon">📅</span>
+                <span class="detail-label">Date Péremption</span>
+                <span class="detail-value">{row['DDP']}</span>
+            </div>
+        """
+        if 'Arrivage' in row and row['Arrivage']:
+            specs_html += f"""
+            <div class="detail-item">
+                <span class="detail-icon">🚚</span>
+                <span class="detail-label">Arrivage</span>
+                <span class="detail-value">{row['Arrivage']}</span>
+            </div>
+            """
+        if 'Dépôt' in row and row['Dépôt']:
+            specs_html += f"""
+            <div class="detail-item">
+                <span class="detail-icon">🏠</span>
+                <span class="detail-label">Dépôt</span>
+                <span class="detail-value">{row['Dépôt']}</span>
+            </div>
+            """
+        specs_html += "</div>"
+        st.markdown(specs_html, unsafe_allow_html=True)
+        
+        # Admin / Manager Panel
         if st.session_state.user_role == "Responsable":
-            st.write(f"**📦 Stock :** {row['Quantité']} unités")
-            val_tot = float(row['PPA']) * float(row['Quantité'])
-            st.write(f"**💰 Valeur Stock :** {val_tot:,.2f} DA")
-            st.write(f"**💳 Prix Achat :** {row['Prix_Achat']} DA")
-            st.write(f"**📈 Marge :** {(float(row['PPA']) - float(row['Prix_Achat'])):.2f} DA")
+            ppa_val = float(row['PPA']) if row['PPA'] > 0 else 0.0
+            achat_val = float(row['Prix_Achat']) if row['Prix_Achat'] > 0 else 0.0
+            qty_val = float(row['Quantité']) if row['Quantité'] > 0 else 0.0
+            val_tot = ppa_val * qty_val
+            marge = ppa_val - achat_val
+            marge_pct = (marge / ppa_val * 100) if ppa_val > 0 else 0.0
+            
+            st.markdown(f"""
+            <div class="internal-stats-card">
+                <div class="stats-card-title">🔑 Données Administrateur</div>
+                <div class="admin-grid">
+                    <div class="admin-stat-item">
+                        <span class="admin-stat-label">Stock en Dépôt</span>
+                        <span class="admin-stat-val">{int(qty_val)} unités</span>
+                    </div>
+                    <div class="admin-stat-item">
+                        <span class="admin-stat-label">Valeur du Stock</span>
+                        <span class="admin-stat-val">{val_tot:,.0f} DA</span>
+                    </div>
+                    <div class="admin-stat-item">
+                        <span class="admin-stat-label">Prix d'Achat</span>
+                        <span class="admin-stat-val">{achat_val:,.0f} DA</span>
+                    </div>
+                    <div class="admin-stat-item">
+                        <span class="admin-stat-label">Marge Estimée</span>
+                        <span class="admin-stat-val" style="color:#10b981;">+{marge:,.0f} DA ({marge_pct:.1f}%)</span>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
         
-        st.divider()
         if row['Description']:
-            st.info(f"📝 **Description** : {row['Description']}")
-            st.divider()
-        p_text = f"{row['PPA']} DA" if row['PPA'] > 0 else "Prix sur demande"
+            st.markdown(f"""
+            <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:12px; padding:12px 16px; margin-bottom:15px;">
+                <div style="font-size:0.75rem; text-transform:uppercase; opacity:0.5; font-weight:600; margin-bottom:6px;">📝 Description</div>
+                <div style="font-size:0.9rem; line-height:1.4;">{row['Description']}</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+        p_text = f"{row['PPA']:,.0f} DA" if row['PPA'] > 0 else "Prix sur demande"
         st.metric("Prix Unitaire", p_text)
+        
         msg = urllib.parse.quote(f"Pharmaciel - {row['Produit']} | Prix: {row['PPA']} DA")
-        st.markdown(f'<a href="https://wa.me/?text={msg}" target="_blank" style="background-color:#25D366; color:white; padding:10px; border-radius:5px; text-decoration:none; display:block; text-align:center;">Partager WhatsApp</a>', unsafe_allow_html=True)
+        st.markdown(f"""
+        <a href="https://wa.me/?text={msg}" target="_blank" style="background: linear-gradient(95deg, #25D366, #128c7e); color:white; padding:12px; border-radius:12px; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:8px; text-align:center; font-weight:600; box-shadow: 0 4px 15px rgba(37,211,102,0.25); text-transform:uppercase; letter-spacing:0.5px; transition:all 0.3s ease; margin-bottom: 20px;">
+            <svg width="18" height="18" fill="white" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle; margin-right:4px;"><path d="M12.031 0C5.385 0 0 5.386 0 12.03c0 2.12.551 4.198 1.597 6.02L.031 24l6.105-1.603a11.972 11.972 0 0 0 5.895 1.543h.005c6.645 0 12.03-5.387 12.03-12.032C24.066 5.386 18.679 0 12.031 0zm0 21.968h-.005a9.963 9.963 0 0 1-5.075-1.378l-.364-.216-3.771.99.998-3.676-.237-.377a9.96 9.96 0 0 1-1.526-5.283c0-5.5 4.476-9.975 9.98-9.975 5.503 0 9.978 4.475 9.978 9.975s-4.475 9.975-9.978 9.975zm5.474-7.48c-.3-.15-1.776-.876-2.052-.976-.275-.101-.476-.15-.676.15-.2.302-.776.977-.951 1.177-.175.201-.351.226-.651.076a8.212 8.212 0 0 1-2.417-1.493 9.07 9.07 0 0 1-1.68-2.09c-.176-.301-.019-.464.131-.614.136-.135.301-.351.451-.526.151-.176.2-.301.302-.501.101-.201.05-.376-.025-.526-.075-.15-.676-1.63-.926-2.23-.243-.585-.49-.505-.676-.514-.175-.008-.376-.008-.576-.008s-.526.075-.801.376c-.275.301-1.052 1.028-1.052 2.508 0 1.48 1.077 2.91 1.227 3.111.15.2 2.122 3.238 5.14 4.542.718.309 1.278.494 1.716.632.72.228 1.375.195 1.894.118.58-.086 1.776-.726 2.026-1.428.25-.702.25-1.304.175-1.429-.075-.126-.275-.201-.575-.351z"/></svg>
+            PARTAGER SUR WHATSAPP
+        </a>
+        """, unsafe_allow_html=True)
 
         # --- ASSISTANT IA CONSEIL ---
         if settings.get('ai_active', True):
@@ -1050,6 +1375,7 @@ def show_details(row):
                                         r = response.json()['choices'][0]['message']['content']
                                     else:
                                         r = f"⚠️ Erreur OpenRouter ({response.status_code}): {response.text}"
+                                    add_log("Question IA", f"Produit: {row['Produit']} | Q: {user_q}")
                                 elif ai_provider == "Google Gemini" and settings.get('gemini_key'):
                                     # Logic Gemini Direct
                                     gem_key = settings.get('gemini_key').strip()
@@ -1070,6 +1396,7 @@ def show_details(row):
                                     model = genai.GenerativeModel(target_model)
                                     response = model.generate_content(prompt)
                                     r = response.text
+                                    add_log("Question IA", f"Produit: {row['Produit']} | Q: {user_q}")
                                 else:
                                     r = "⚠️ Clé API non configurée pour le fournisseur sélectionné."
                             except Exception as e:
@@ -1089,6 +1416,10 @@ def show_details(row):
                                 r = f"Le prix est de **{row['PPA']} DA**. C'est un excellent rapport qualité-prix."
                             else:
                                 r = f"C'est un produit très demandé de la catégorie **{row['Famille']}**. Pour un conseil expert, veuillez configurer la clé API Gemini dans les réglages."
+                            add_log("Question IA (Secours)", f"Produit: {row['Produit']} | Q: {user_q}")
+                        
+                        st.chat_message("user").write(user_q)
+                        st.chat_message("assistant").write(f"✨ **Réponse de l'expert :** {r}")uillez configurer la clé API Gemini dans les réglages."
                         
                         st.chat_message("user").write(user_q)
                         st.chat_message("assistant").write(f"✨ **Réponse de l'expert :** {r}")
@@ -1211,24 +1542,46 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
                                     st.image(img, use_container_width=True)
                                 else:
                                     if st.session_state.user_role != "Client":
-                                        if st.button("📸 Ajouter Photo", key=f"btn_add_img_{start_idx+i+j}", use_container_width=True):
+                                        st.markdown("""
+                                        <div class="no-image-placeholder">
+                                            <div class="placeholder-icon">📸</div>
+                                            <div class="placeholder-text">Administrateur</div>
+                                        </div>
+                                        """, unsafe_allow_html=True)
+                                        if st.button("Ajouter Photo", key=f"btn_add_img_{start_idx+i+j}", use_container_width=True):
                                             add_photo_dialog(row['Produit'])
                                     else:
-                                        st.warning("Pas d'image")
+                                        st.markdown("""
+                                        <div class="no-image-placeholder">
+                                            <div class="placeholder-icon">💊</div>
+                                            <div class="placeholder-text">Visuel Pharmaciel</div>
+                                        </div>
+                                        """, unsafe_allow_html=True)
                                 
                                 # Badges compacts
                                 badge_html = ""
                                 if st.session_state.user_role != "Client" and row['Quantité'] < 5: 
-                                    badge_html += '<span style="background:rgba(255,0,0,0.1); color:red; padding:2px 6px; border-radius:4px; font-size:10px; margin-right:5px;">⚠️ Stock Bas</span>'
+                                    badge_html += '<span style="background:linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0.05) 100%); color:#ef4444; border:1px solid rgba(239, 68, 68, 0.25); padding:3px 8px; border-radius:12px; font-size:9px; font-weight:600; text-transform:uppercase; margin-right:4px;">⚠️ Stock Bas</span>'
                                 if row['Promo']: 
-                                    badge_html += '<span style="background:rgba(255,165,0,0.1); color:orange; padding:2px 6px; border-radius:4px; font-size:10px;">🔥 PROMO</span>'
-                                if badge_html: st.markdown(f'<div style="margin-bottom:5px;">{badge_html}</div>', unsafe_allow_html=True)
+                                    badge_html += '<span style="background:linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.05) 100%); color:#f59e0b; border:1px solid rgba(245, 158, 11, 0.25); padding:3px 8px; border-radius:12px; font-size:9px; font-weight:600; text-transform:uppercase;">🔥 PROMO</span>'
                                 
-                                st.markdown(f"**{row['Produit']}**")
-                                p_disp = f"{row['PPA']} DA" if row['PPA'] > 0 else "Prix sur demande"
-                                st.markdown(f"### {p_disp}")
+                                if badge_html: 
+                                    st.markdown(f'<div class="card-badges">{badge_html}</div>', unsafe_allow_html=True)
+                                else:
+                                    st.markdown('<div class="card-badges-empty"></div>', unsafe_allow_html=True)
                                 
-                                c_b1, c_b2 = st.columns(2)
+                                # Elegant HTML styling for Product card body
+                                p_disp = f"{row['PPA']:,.0f}" if row['PPA'] > 0 else "Sur demande"
+                                currency_span = '<span class="currency">DA</span>' if row['PPA'] > 0 else ""
+                                st.markdown(f"""
+                                <div class="product-card-body">
+                                    <div class="product-labo">{row['Laboratoire']}</div>
+                                    <div class="product-title" title="{row['Produit']}">{row['Produit']}</div>
+                                    <div class="product-price">{p_disp}{currency_span}</div>
+                                </div>
+                                """, unsafe_allow_html=True)
+                                
+                                c_b1, c_b2 = st.columns([3, 2])
                                 if c_b1.button("Détails", key=f"v_{start_idx+i+j}", use_container_width=True): show_details(row)
                                 if c_b2.button("🛒", key=f"add_{start_idx+i+j}", use_container_width=True):
                                     if row['Produit'] in st.session_state.cart:
