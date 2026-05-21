@@ -10,6 +10,7 @@ click==8.3.2
 colorama==0.4.6
 cryptography==47.0.0
 defusedxml==0.7.1
+duckduckgo-search>=8.0.0
 et_xmlfile==2.0.0
 fonttools==4.62.1
 fpdf2==2.8.7
@@ -29,6 +30,7 @@ idna==3.13
 Jinja2==3.1.6
 jsonschema==4.26.0
 jsonschema-specifications==2025.9.1
+lxml>=5.3.0
 MarkupSafe==3.0.3
 narwhals==2.20.0
 numpy==2.4.4
@@ -37,6 +39,7 @@ packaging==26.1
 pandas==3.0.2
 pillow==12.2.0
 plotly==6.7.0
+primp>=0.15.0
 proto-plus==1.27.2
 protobuf==5.29.6
 pyarrow==23.0.1

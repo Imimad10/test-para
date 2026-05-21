@@ -1633,7 +1633,7 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
         with tabs[t_tabs_names.index("🖼️ Images & Web")]:
             st.subheader("🖼️ Gestion des visuels")
             
-            mode_img = st.radio("Mode d'action", ["Un par un (Nouveaux)", "🖼️ Modifier / Supprimer", "⚡ Importation Groupée"], horizontal=True)
+            mode_img = st.radio("Mode d'action", ["Un par un (Nouveaux)", "🔍 Recherche Auto (Web)", "⚡ Liaison 1-Clic GDrive", "🖼️ Modifier / Supprimer", "⚡ Importation Groupée"], horizontal=True)
             
             if mode_img == "Un par un (Nouveaux)":
                 df_sans_image = df_para[
@@ -1713,6 +1713,218 @@ if menu in ["📦 Gestion & Boutique", "📦 Boutique"]:
                                             st.rerun()
                                     else: st.error("Impossible de télécharger l'image depuis cette URL.")
                                 except Exception as e: st.error(f"Erreur : {e}")
+
+            elif mode_img == "🔍 Recherche Auto (Web)":
+                st.subheader("🔍 Recherche d'images automatique (DuckDuckGo)")
+                
+                df_sans_image = df_para[
+                    (df_para['image_path'].isna()) | 
+                    (df_para['image_path'] == "") | 
+                    (df_para['image_path'].str.len() < 3)
+                ]
+                
+                sans_image_seulement = st.checkbox("Afficher uniquement les produits sans image", value=True)
+                
+                if sans_image_seulement:
+                    liste_produits = sorted(df_sans_image['Produit'].unique()) if not df_sans_image.empty else []
+                else:
+                    liste_produits = sorted(df_para['Produit'].unique())
+                
+                if not liste_produits:
+                    st.info("Aucun produit ne correspond aux critères.")
+                else:
+                    col_sel, col_act = st.columns([2, 1])
+                    with col_sel:
+                        sel_prod = st.selectbox("Sélectionner un produit", liste_produits, key="ddg_sel_prod")
+                    with col_act:
+                        st.write("") 
+                        st.write("") 
+                        batch_clicked = st.button("🚀 Auto-fetch ALL sans images", use_container_width=True, key="ddg_batch_btn")
+                    
+                    if batch_clicked:
+                        products_to_fetch = df_sans_image['Produit'].unique()
+                        if len(products_to_fetch) == 0:
+                            st.info("Tous les produits ont déjà une image !")
+                        else:
+                            import time
+                            progress_bar = st.progress(0)
+                            status_text = st.empty()
+                            success_count = 0
+                            from duckduckgo_search import DDGS
+                            
+                            for idx_b, p_name in enumerate(products_to_fetch):
+                                status_text.text(f"Recherche pour : {p_name} ({idx_b+1}/{len(products_to_fetch)})")
+                                progress_bar.progress(idx_b / len(products_to_fetch))
+                                
+                                try:
+                                    search_q = f"{p_name} parapharmacie"
+                                    results = list(DDGS().images(search_q, max_results=1))
+                                    if results:
+                                        img_url = results[0]['image']
+                                        response = requests.get(img_url, timeout=10)
+                                        if response.status_code == 200:
+                                            fname = f"{clean_filename(p_name)}.jpg"
+                                            target_path = os.path.join(IMG_DIR, fname)
+                                            img_data = io.BytesIO(response.content)
+                                            saved_name = resize_and_save_image(img_data, target_path)
+                                            if saved_name:
+                                                df_para.loc[df_para['Produit'] == p_name, 'image_path'] = saved_name
+                                                success_count += 1
+                                    time.sleep(0.5)
+                                except Exception as e:
+                                    pass
+                            
+                            progress_bar.progress(1.0)
+                            status_text.text("Terminé !")
+                            if success_count > 0:
+                                save_data(df_para)
+                                sync_data_permanent(f"Batch auto image fetch: {success_count} images")
+                                st.success(f"🎉 {success_count} images ont été récupérées et associées !")
+                                st.rerun()
+                            else:
+                                st.warning("Aucune image n'a pu être récupérée automatiquement.")
+                    
+                    if "prev_sel_prod" not in st.session_state or st.session_state.prev_sel_prod != sel_prod:
+                        st.session_state.prev_sel_prod = sel_prod
+                        st.session_state.ddg_image_results = None
+                        st.session_state.ddg_search_query = f"{sel_prod} parapharmacie"
+                    
+                    c_q, c_b = st.columns([3, 1])
+                    with c_q:
+                        search_query = st.text_input("Recherche DuckDuckGo", value=st.session_state.ddg_search_query, key="ddg_q_input")
+                        st.session_state.ddg_search_query = search_query
+                    with c_b:
+                        st.write("") 
+                        st.write("") 
+                        search_clicked = st.button("🔍 Rechercher", use_container_width=True, key="ddg_search_action")
+                    
+                    if search_clicked:
+                        with st.spinner("Recherche d'images en cours..."):
+                             try:
+                                 from duckduckgo_search import DDGS
+                                 st.session_state.ddg_image_results = list(DDGS().images(search_query, max_results=8))
+                             except Exception as e:
+                                 st.error(f"Erreur de recherche : {e}")
+                                 st.session_state.ddg_image_results = []
+                    
+                    if st.session_state.ddg_image_results:
+                        st.write("### Sélectionnez une image :")
+                        cols = st.columns(4)
+                        for idx_r, r in enumerate(st.session_state.ddg_image_results):
+                            with cols[idx_r % 4]:
+                                with st.container(border=True):
+                                    st.image(r['thumbnail'], use_container_width=True)
+                                    st.caption(f"Source: {r.get('source', 'Web')}")
+                                    if st.button("💾 Utiliser", key=f"ddg_btn_{idx_r}", use_container_width=True):
+                                         with st.spinner("Téléchargement de l'image..."):
+                                             try:
+                                                 response = requests.get(r['image'], timeout=10)
+                                                 if response.status_code == 200:
+                                                     fname = f"{clean_filename(sel_prod)}.jpg"
+                                                     target_path = os.path.join(IMG_DIR, fname)
+                                                     img_data = io.BytesIO(response.content)
+                                                     saved_name = resize_and_save_image(img_data, target_path)
+                                                     if saved_name:
+                                                         df_para.loc[df_para['Produit'] == sel_prod, 'image_path'] = saved_name
+                                                         save_data(df_para)
+                                                         sync_data_permanent(f"Auto image search: {sel_prod}")
+                                                         st.success(f"Image liée à {sel_prod} !")
+                                                         st.session_state.ddg_image_results = None
+                                                         st.rerun()
+                                                     else:
+                                                         st.error("Erreur de formatage.")
+                                                 else:
+                                                     st.error(f"Erreur HTTP {response.status_code}")
+                                             except Exception as e:
+                                                 st.error(f"Erreur : {e}")
+
+            elif mode_img == "⚡ Liaison 1-Clic GDrive":
+                st.subheader("⚡ Synchronisation & Liaison GDrive en 1 Clic")
+                st.markdown("Cette méthode associe automatiquement toutes les images du dossier `image_stock` de Google Drive aux produits du catalogue en se basant sur la similitude de leurs noms.")
+                
+                df_empty = df_para[
+                    (df_para['image_path'].isna()) | 
+                    (df_para['image_path'] == "") | 
+                    (df_para['image_path'].str.len() < 3)
+                ].copy()
+                
+                st.metric("Produits sans image", len(df_empty))
+                
+                if st.button("🚀 Démarrer la Liaison 1-Clic", type="primary", use_container_width=True, key="gdrive_one_click_sync"):
+                    with st.spinner("Liaison automatique Google Drive..."):
+                        try:
+                            from utils.gdrive_api import get_gdrive_service, get_main_folder_id, get_remote_file_id, download_file_from_gdrive
+                            service = get_gdrive_service()
+                            main_id = get_main_folder_id()
+                            if service and main_id:
+                                img_folder_id = get_remote_file_id(service, "image_stock", main_id)
+                                if img_folder_id:
+                                    results = service.files().list(
+                                        q=f"'{img_folder_id}' in parents and trashed=false", 
+                                        fields='files(id, name)'
+                                    ).execute()
+                                    drive_files = results.get('files', [])
+                                    
+                                    if not drive_files:
+                                        st.warning("Aucune photo trouvée dans 'image_stock' sur Drive.")
+                                    else:
+                                        if df_empty.empty:
+                                            st.success("🎉 Tous les produits ont déjà une image !")
+                                        else:
+                                            drive_dict = {f['name']: f['id'] for f in drive_files}
+                                            linked_count = 0
+                                            progress_bar = st.progress(0)
+                                            status_text = st.empty()
+                                            
+                                            for idx_d, (df_idx, row) in enumerate(df_empty.iterrows()):
+                                                p_name = row['Produit']
+                                                p_clean = clean_filename(p_name)
+                                                
+                                                best_match_file_name = None
+                                                best_match_file_id = None
+                                                
+                                                for d_name, d_id in drive_dict.items():
+                                                    d_base = os.path.splitext(d_name)[0]
+                                                    d_clean = clean_filename(d_base)
+                                                    
+                                                    if p_clean and d_clean and (p_clean in d_clean or d_clean in p_clean):
+                                                        best_match_file_name = d_name
+                                                        best_match_file_id = d_id
+                                                        break
+                                                
+                                                if best_match_file_id:
+                                                    status_text.text(f"Téléchargement : {p_name} ➔ {best_match_file_name}")
+                                                    fname = f"{clean_filename(p_name)}.jpg"
+                                                    temp_path = os.path.join(IMG_DIR, f"temp_{fname}")
+                                                    download_file_from_gdrive(service, best_match_file_id, temp_path)
+                                                    if os.path.exists(temp_path):
+                                                        final_path = os.path.join(IMG_DIR, fname)
+                                                        with open(temp_path, "rb") as f_temp:
+                                                            saved_name = resize_and_save_image(f_temp, final_path)
+                                                        try:
+                                                            os.remove(temp_path)
+                                                        except:
+                                                            pass
+                                                        if saved_name:
+                                                            df_para.at[df_idx, 'image_path'] = saved_name
+                                                            linked_count += 1
+                                                
+                                                progress_bar.progress((idx_d + 1) / len(df_empty))
+                                            
+                                            status_text.text("Liaison GDrive terminée !")
+                                            if linked_count > 0:
+                                                save_data(df_para)
+                                                sync_data_permanent(f"Liaison GDrive 1 clic: {linked_count} images")
+                                                st.success(f"🎉 Liaison réussie ! {linked_count} produits ont été associés à leurs images du Drive.")
+                                                st.rerun()
+                                            else:
+                                                st.info("Aucune correspondance trouvée entre les noms de fichiers sur le Drive et les produits sans images.")
+                                else:
+                                    st.error("Le dossier 'image_stock' est introuvable sur votre Google Drive.")
+                            else:
+                                st.error("Connexion à Google Drive impossible (service ou dossier principal introuvable).")
+                        except Exception as e:
+                            st.error(f"Erreur lors de la synchronisation : {e}")
 
             elif mode_img == "🖼️ Modifier / Supprimer":
                 df_avec_image = df_para[df_para['image_path'].str.len() > 3]
